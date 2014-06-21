@@ -194,7 +194,7 @@
             self.context = self.inkContext;
             self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.inking;
             setDefaults();
-        }
+        };
 
         function selectMode()
         {
@@ -317,7 +317,7 @@
                         self.context.stroke();
                         self.context.closePath();
 
-                        var rect = self.inkManager.processPointerUp(pt);
+                        self.inkManager.processPointerUp(pt);
 
                         renderAllStrokes();
                     }
@@ -353,22 +353,6 @@
                     self.inkManager.selectWithLine(pt, pt);
                     renderAllStrokes();
                 }
-            },
-
-            handleSelectionBoxPointerDown : function(evt)
-            {
-                // Start the processing of events related to this pointer as part of a gesture.
-                // In this sample we are interested in MSGestureChange event, which we use to move selected ink.
-                // See handleSelectionBoxGestureChange event handler.
-                //self.selBox.gestureObject.addPointer(evt.pointerId);
-            },
-
-            handleSelectionBoxGestureChange : function(evt)
-            {
-                // Move selected ink
-                self.inkManager.moveSelected({x: evt.translationX, y: evt.translationY});
-
-                renderAllStrokes();
             }
         };
 
@@ -454,9 +438,12 @@
                 self.inkManager.recognizeAsync(Windows.UI.Input.Inking.InkRecognitionTarget.all).done
                 (
                     function (results) {
+                        var i;
                         self.inkManager.updateRecognitionResults(results);
 
-                        self.toast("Results: " + results);
+                        for (i = 0; i < results.length; i++) {
+                            self.toast("Results: " + results[i].getTextCandidates().join());
+                        }
                     },
                     function (e) {
                         self.toast("InkManager::recognizeAsync: " + e.toString());
@@ -491,7 +478,7 @@
                 self.toast("setRecognizerByName: " + e.toString());
             }
             return false;
-        }
+        };
 
         return self;
     };
@@ -509,7 +496,7 @@
         WinJS.UI.processAll().then(
             function () {
                 var parent = id(elementId);
-                var canvasElement = document.createElement('canvas');
+                var canvasElement = document.createElement("canvas");
                 parent.appendChild(canvasElement);
 
                 self.inkCanvas = canvasElement;
