@@ -18,8 +18,6 @@
         // and for lassoing (and erasing).
         self.inkCanvas = null;
         self.inkContext = null;
-        self.selCanvas = null;
-        self.selContext = null;
 
         self.toast = function (message) {
             var template = notifications.ToastTemplateType.toastText01;
@@ -28,7 +26,6 @@
             toastTextElements[0].appendChild(toastXml.createTextNode(message));
             var toastNode = toastXml.selectSingleNode("/toast");
             toastNode.setAttribute("duration", "long");
-            //toastXml.selectSingleNode("/toast").setAttribute("launch", '{"type":"toast","param1":"12345","param2":"67890"}');
 
             var toast = new notifications.ToastNotification(toastXml);
             var toastNotifier = notifications.ToastNotificationManager.createToastNotifier();
@@ -64,30 +61,6 @@
 
         self.penID = -1;
 
-        // This global variable holds a reference to the div that is imposed on top of selected ink.
-        // It is used to register event handlers that allow the user to move around selected ink.
-        self.selBox = null;
-
-        // Hides the (transparent) div that is used to capture events for moving selected ink
-        function anchorSelection() {
-            // Make selBox of size 0 and move it to the top-left corner
-            self.selBox.style.left = "0px";
-            self.selBox.style.top = "0px";
-            self.selBox.style.width = "0px";
-            self.selBox.style.height = "0px";
-        }
-
-        // Places the (transparent) div that is used to capture events for moving selected ink.
-        // The assumption is that rect is the bounding box of the selected ink.
-        function detachSelection(rect) {
-            // Move and resize selBox so that it perfectly overlaps with rect
-            self.selBox.rect = rect;
-            self.selBox.style.left = self.selBox.rect.x + "px";
-            self.selBox.style.top = self.selBox.rect.y + "px";
-            self.selBox.style.width = self.selBox.rect.width + "px";
-            self.selBox.style.height = self.selBox.rect.height + "px";
-        }
-
         // The "mode" of whether we are highlighting, inking, lassoing, or erasing is controlled by this global variable,
         // which should be pointing to either hlContext, inkContext, or selContext.
         // In lassoing mode (when context points to selContext), we might also be in erasing mode;
@@ -113,7 +86,6 @@
 
         self.savedContext = null;
         self.savedStyle = null;
-        self.savedCursor = null;
         self.savedMode = null;
 
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
@@ -194,7 +166,6 @@
             {
                 self.savedStyle = self.context.strokeStyle;
                 self.savedContext = self.context;
-                self.savedCursor = self.selCanvas.style.cursor;
                 self.savedMode = self.inkManager.mode;
             }
         }
@@ -206,7 +177,6 @@
                 self.context = self.savedContext;
                 self.context.strokeStyle = self.savedStyle;
                 self.inkManager.mode = self.savedMode;
-                self.selCanvas.style.cursor = self.savedCursor;
                 clearMode();
             }
         }
@@ -224,34 +194,30 @@
             self.context = self.inkContext;
             self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.inking;
             setDefaults();
-            self.selCanvas.style.cursor = "default";
         }
 
         function selectMode()
         {
             clearMode();
-            self.selContext.strokeStyle = self.selPattern;
-            self.context = self.selContext;
+            self.inkContext.strokeStyle = self.selPattern;
+            self.context = self.inkContext;
             self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.selecting;
-            self.selCanvas.style.cursor = "default";
         }
 
         function eraseMode()
         {
             clearMode();
-            self.selContext.strokeStyle = "rgba(255,255,255,0.0)";
-            self.context = self.selContext;
+            self.inkContext.strokeStyle = "rgba(255,255,255,0.0)";
+            self.context = self.inkContext;
             self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.erasing;
-            self.selCanvas.style.cursor = "url(images/erase.cur), auto";
         }
 
         function tempEraseMode()
         {
             saveMode();
-            self.selContext.strokeStyle = "rgba(255,255,255,0.0)";
-            self.context = self.selContext;
+            self.inkContext.strokeStyle = "rgba(255,255,255,0.0)";
+            self.context = self.inkContext;
             self.inkManager.mode = self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.erasing;
-            self.selCanvas.style.cursor = "url(images/erase.cur), auto";
         }
 
         // Note that we cannot just set the width in stroke.drawingAttributes.size.width,
@@ -289,8 +255,7 @@
                 try {
 
                     if ((evt.pointerType === "pen") || ((evt.pointerType === "mouse") && (evt.button === 0))) {
-                        // Anchor and clear any current selection.
-                        anchorSelection();
+                        // Clear any current selection.
                         var pt = { x: 0.0, y: 0.0 };
                         self.inkManager.selectWithLine(pt, pt);
 
@@ -313,7 +278,7 @@
                     else if (evt.pointerType === "touch") {
                         // Start the processing of events related to this pointer as part of a gesture.
                         // In this sample we are interested in MSGestureTap event, which we use to show alternates. See handleTap event handler. 
-                        self.selCanvas.gestureObject.addPointer(evt.pointerId);
+                        self.inkCanvas.gestureObject.addPointer(evt.pointerId);
                     }
                 }
                 catch (e) {
@@ -353,9 +318,6 @@
                         self.context.closePath();
 
                         var rect = self.inkManager.processPointerUp(pt);
-                        if (self.inkManager.mode === Windows.UI.Input.Inking.InkManipulationMode.selecting) {
-                            detachSelection(rect);
-                        }
 
                         renderAllStrokes();
                     }
@@ -385,9 +347,8 @@
             },
 
             handleTap : function(evt) {
-                // Anchor and clear any current selection.
+                // Clear any current selection.
                 if (anySelected()) {
-                    anchorSelection();
                     var pt = { x: 0.0, y: 0.0 };
                     self.inkManager.selectWithLine(pt, pt);
                     renderAllStrokes();
@@ -399,17 +360,11 @@
                 // Start the processing of events related to this pointer as part of a gesture.
                 // In this sample we are interested in MSGestureChange event, which we use to move selected ink.
                 // See handleSelectionBoxGestureChange event handler.
-                self.selBox.gestureObject.addPointer(evt.pointerId);
+                //self.selBox.gestureObject.addPointer(evt.pointerId);
             },
 
             handleSelectionBoxGestureChange : function(evt)
             {
-                // Move selection box
-                self.selBox.rect.x += evt.translationX;
-                self.selBox.rect.y += evt.translationY;
-                self.selBox.style.left = self.selBox.rect.x + "px";
-                self.selBox.style.top = self.selBox.rect.y + "px";
-
                 // Move selected ink
                 self.inkManager.moveSelected({x: evt.translationX, y: evt.translationY});
 
@@ -421,7 +376,6 @@
         // then the paper is drawn, then all the strokes are drawn.
         function renderAllStrokes()
         {
-            self.selContext.clearRect(0, 0, self.selCanvas.width, self.selCanvas.height);
             self.inkContext.clearRect(0, 0, self.inkCanvas.width, self.inkCanvas.height);
 
             self.inkManager.getStrokes().forEach(function (stroke)
@@ -542,7 +496,10 @@
         return self;
     };
 
-    global.InkCanvas.prototype.initializeInk = function () {
+    //pass in the ID of the element that the canvas should be initialized in
+    //TODO: add an callback for when the ink has been recognized
+    //TODO: allow an errorHandler and messageHandler to be passed in
+    global.InkCanvas.prototype.initializeInk = function (elementId) {
         var self = this;
         // Utility to fetch elements by ID.
         function id(elementId) {
@@ -551,47 +508,27 @@
 
         WinJS.UI.processAll().then(
             function () {
-                self.inkCanvas = id("InkCanvas");
+                var parent = id(elementId);
+                var canvasElement = document.createElement('canvas');
+                parent.appendChild(canvasElement);
+
+                self.inkCanvas = canvasElement;
+                self.inkCanvas.gestureObject = new MSGesture();
+                self.inkCanvas.gestureObject.target = self.inkCanvas;
                 self.inkCanvas.setAttribute("width", self.inkCanvas.offsetWidth);
                 self.inkCanvas.setAttribute("height", self.inkCanvas.offsetHeight);
+                self.inkCanvas.style.backgroundColor = "White";
                 self.inkContext = self.inkCanvas.getContext("2d");
                 self.inkContext.lineWidth = 2;
                 self.inkContext.strokeStyle = "Black";
                 self.inkContext.lineCap = "round";
                 self.inkContext.lineJoin = "round";
 
-                self.selCanvas = id("SelectCanvas");
-                self.selCanvas.gestureObject = new MSGesture();
-                self.selCanvas.gestureObject.target = self.selCanvas;
-                self.selCanvas.setAttribute("width", self.selCanvas.offsetWidth);
-                self.selCanvas.setAttribute("height", self.selCanvas.offsetHeight);
-                self.selContext = self.selCanvas.getContext("2d");
-                self.selContext.lineWidth = 1;
-                self.selContext.strokeStyle = "Gold";
-                self.selContext.lineCap = "round";
-                self.selContext.lineJoin = "round";
-
-                self.selBox = id("SelectionBox");
-                self.selBox.addEventListener("pointerdown", self.EventHandler.handleSelectionBoxPointerDown, false);
-                self.selBox.addEventListener("MSGestureChange", self.EventHandler.handleSelectionBoxGestureChange, false);
-                self.selBox.gestureObject = new MSGesture();
-                self.selBox.gestureObject.target = self.selBox;
-                self.selBox.style.left = "0px";
-                self.selBox.style.top = "0px";
-                self.selBox.style.width = "0px";
-                self.selBox.style.height = "0px";
-
-                // Note that we must set the event listeners on the top-most canvas.
-
-                self.selCanvas.addEventListener("pointerdown", self.EventHandler.handlePointerDown, false);
-                self.selCanvas.addEventListener("pointerup", self.EventHandler.handlePointerUp, false);
-                self.selCanvas.addEventListener("pointermove", self.EventHandler.handlePointerMove, false);
-                self.selCanvas.addEventListener("pointerout", self.EventHandler.handlePointerOut, false);
-                self.selCanvas.addEventListener("MSGestureTap", self.EventHandler.handleTap, false);
-
-                //var image = new Image();
-                //image.onload = function () { self.selContext.strokeStyle = self.selPattern = self.selContext.createPattern(image, "repeat"); };
-                //image.src = "images/select.png";
+                self.inkCanvas.addEventListener("pointerdown", self.EventHandler.handlePointerDown, false);
+                self.inkCanvas.addEventListener("pointerup", self.EventHandler.handlePointerUp, false);
+                self.inkCanvas.addEventListener("pointermove", self.EventHandler.handlePointerMove, false);
+                self.inkCanvas.addEventListener("pointerout", self.EventHandler.handlePointerOut, false);
+                self.inkCanvas.addEventListener("MSGestureTap", self.EventHandler.handleTap, false);
 
                 if (!self.setRecognizerByName("Microsoft English (US) Handwriting Recognizer")) {
                     self.toast("Failed to find English (US) recognizer");
@@ -607,8 +544,4 @@
             }
         );
     };
-
-
-
-    
 }(window, Windows));
