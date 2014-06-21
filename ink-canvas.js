@@ -240,7 +240,7 @@
             handlePointerDown : function(evt) {
                 try {
 
-                    if ((evt.pointerType === "pen") || ((evt.pointerType === "mouse") && (evt.button === 0))) {
+                    if (evt.button === 0) {
                         // Clear any current selection.
                         var pt = { x: 0.0, y: 0.0 };
                         self.inkManager.selectWithLine(pt, pt);
@@ -331,15 +331,6 @@
                     self.onError(e);
                 }
             },
-
-            handleTap : function(evt) {
-                // Clear any current selection.
-                if (anySelected()) {
-                    var pt = { x: 0.0, y: 0.0 };
-                    self.inkManager.selectWithLine(pt, pt);
-                    renderAllStrokes();
-                }
-            }
         };
 
         // Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,
@@ -505,7 +496,8 @@
                 self.inkCanvas.addEventListener("pointerup", self.EventHandler.handlePointerUp, false);
                 self.inkCanvas.addEventListener("pointermove", self.EventHandler.handlePointerMove, false);
                 self.inkCanvas.addEventListener("pointerout", self.EventHandler.handlePointerOut, false);
-                self.inkCanvas.addEventListener("MSGestureTap", self.EventHandler.handleTap, false);
+                self.inkCanvas.addEventListener("MSGestureStart", self.EventHandler.handlePointerDown, false);
+                self.inkCanvas.addEventListener("MSGestureEnd", self.EventHandler.handlePointerUp, false);
 
                 if (!self.setRecognizerByName("Microsoft English (US) Handwriting Recognizer")) {
                     self.sendNotification("Failed to find English (US) recognizer");
