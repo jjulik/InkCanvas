@@ -1,4 +1,4 @@
-﻿(function (global, Windows) {
+﻿(function (global, Windows, WinJS) {
     "use strict";
 
     global.InkCanvas = function() {
@@ -447,7 +447,7 @@
                 parent.appendChild(canvasElement);
 
                 self.inkCanvas = canvasElement;
-                self.inkCanvas.gestureObject = new MSGesture();
+                self.inkCanvas.gestureObject = new global.MSGesture();
                 self.inkCanvas.gestureObject.target = self.inkCanvas;
                 self.inkCanvas.setAttribute("width", self.inkCanvas.offsetWidth);
                 self.inkCanvas.setAttribute("height", self.inkCanvas.offsetHeight);
@@ -479,4 +479,4 @@
             }
         );
     };
-}(window, Windows));
+}(window, Windows, WinJS));
