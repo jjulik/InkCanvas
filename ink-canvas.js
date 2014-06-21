@@ -25,20 +25,6 @@
         self.inkCanvas = null;
         self.inkContext = null;
 
-        // Returns true if any strokes inside the ink manager are selected; false otherwise.
-        function anySelected() {
-            var strokes = self.inkManager.getStrokes();
-            var len = strokes.length;
-            for (var i = 0; i < len; i++)
-            {
-                if (strokes[i].selected)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         // Global memory of the current pointID (for pen, and, separately, for touch).
         // We ignore handlePointerMove() and handlePointerUp() calls that don't use the same
         // pointID as the most recent handlePointerDown() call.  This is because the user sometimes
@@ -174,6 +160,8 @@
             }
         }
 
+        //TODO: update documentation
+
         // Five functions to switch back and forth between ink mode, highlight mode, select mode, and erase mode.
         // There is also a temp erase mode, which uses the saveMode()/restoreMode() functions to
         // return us to our previous mode when done erasing.  This is used for quick erasers using the back end
@@ -188,22 +176,6 @@
             self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.inking;
             setDefaults();
         };
-
-        function selectMode()
-        {
-            clearMode();
-            self.inkContext.strokeStyle = self.selPattern;
-            self.context = self.inkContext;
-            self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.selecting;
-        }
-
-        function eraseMode()
-        {
-            clearMode();
-            self.inkContext.strokeStyle = "rgba(255,255,255,0.0)";
-            self.context = self.inkContext;
-            self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.erasing;
-        }
 
         function tempEraseMode()
         {
@@ -261,11 +233,6 @@
                         self.inkManager.processPointerDown(pt);
                         self.penID = evt.pointerId;
                     }
-                    else if (evt.pointerType === "touch") {
-                        // Start the processing of events related to this pointer as part of a gesture.
-                        // In this sample we are interested in MSGestureTap event, which we use to show alternates. See handleTap event handler. 
-                        self.inkCanvas.gestureObject.addPointer(evt.pointerId);
-                    }
                 }
                 catch (e) {
                     self.onError(e);
@@ -286,8 +253,6 @@
                             self.inkManager.processPointerUpdate(pts[i]);
                         }
                     }
-
-                    // No need to process touch events - selCanvas.gestureObject takes care of them and triggers MSGesture* events.
                 }
                 catch (e) {
                     self.onError(e);
@@ -330,7 +295,7 @@
                 catch (e) {
                     self.onError(e);
                 }
-            },
+            }
         };
 
         // Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,
@@ -463,7 +428,8 @@
     //pass in the ID of the element that the canvas should be initialized in
     //errorHandler is a function that accepts an exception as the only argument
     //messageHandler is a function that accepts a string as the only argument
-    //TODO: add an callback for when the ink has been recognized
+    //TODO: add an callback for when the ink has been recognized (Maybe don't do this?)
+    //TODO: add a parameter that is a list of objects each containing a char and a list of chars to accepts as the char
     global.InkCanvas.prototype.initializeInk = function (elementId, errorHandler, messageHandler) {
         var self = this;
         // Utility to fetch elements by ID.
@@ -509,7 +475,7 @@
             function () {
             },
             function (e) {
-                self.onError("inkInitialize " + e.toString());
+                self.onError(e);
             }
         );
     };
