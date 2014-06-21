@@ -3,7 +3,13 @@
 
     global.InkCanvas = function() {
         var self = this;
-        var notifications = Windows.UI.Notifications;
+
+        // Error handler and message handler to be passed in
+        self.onError = function (ex) {
+            throw ex;
+        };
+        self.sendNotification = function (message) {
+        };
 
         // Variables representing the ink interface.
         // The usage of a global variable for drawingAttributes is not completely necessary,
@@ -18,19 +24,6 @@
         // and for lassoing (and erasing).
         self.inkCanvas = null;
         self.inkContext = null;
-
-        self.toast = function (message) {
-            var template = notifications.ToastTemplateType.toastText01;
-            var toastXml = notifications.ToastNotificationManager.getTemplateContent(template);
-            var toastTextElements = toastXml.getElementsByTagName("text");
-            toastTextElements[0].appendChild(toastXml.createTextNode(message));
-            var toastNode = toastXml.selectSingleNode("/toast");
-            toastNode.setAttribute("duration", "long");
-
-            var toast = new notifications.ToastNotification(toastXml);
-            var toastNotifier = notifications.ToastNotificationManager.createToastNotifier();
-            toastNotifier.show(toast);
-        };
 
         // Returns true if any strokes inside the ink manager are selected; false otherwise.
         function anySelected() {
@@ -240,13 +233,6 @@
             self.inkManager.setDefaultDrawingAttributes(self.drawingAttributes);
         }
 
-        function id(elementId) {
-            // Utility to fetch elements by ID.
-            // <summary>Utility to fetch elements by ID</summary>
-            // <param name="elementId" type="String">The id of the element.</param>
-            return document.getElementById(elementId);
-        }
-
         //Event handler region
         self.EventHandler = {
             // We will accept pen down or mouse left down as the start of a stroke.
@@ -282,7 +268,7 @@
                     }
                 }
                 catch (e) {
-                    self.toast("handlePointerDown " + e.toString());
+                    self.onError(e);
                 }
             },
 
@@ -304,7 +290,7 @@
                     // No need to process touch events - selCanvas.gestureObject takes care of them and triggers MSGesture* events.
                 }
                 catch (e) {
-                    self.toast("handlePointerMove " + e.toString());
+                    self.onError(e);
                 }
             },
 
@@ -323,7 +309,7 @@
                     }
                 }
                 catch (e) {
-                    self.toast("handlePointerUp " + e.toString());
+                    self.onError(e);
                 }
             },
 
@@ -342,7 +328,7 @@
                     }
                 }
                 catch (e) {
-                    self.toast("handlePointerOut " + e.toString());
+                    self.onError(e);
                 }
             },
 
@@ -413,7 +399,7 @@
             }
             catch (e) {
                 ctx.restore();
-                self.toast("renderStroke " + e.toString());
+                self.onError(e);
             }
         }
 
@@ -442,16 +428,16 @@
                         self.inkManager.updateRecognitionResults(results);
 
                         for (i = 0; i < results.length; i++) {
-                            self.toast("Results: " + results[i].getTextCandidates().join());
+                            self.sendNotification("Results: " + results[i].getTextCandidates().join());
                         }
                     },
                     function (e) {
-                        self.toast("InkManager::recognizeAsync: " + e.toString());
+                        self.onError(e);
                     }
                 );
             }
             catch (e) {
-                self.toast("find: " + e.toString());
+                self.onError(e);
             }
             return false;
         }
@@ -475,7 +461,7 @@
             }
             catch (e)
             {
-                self.toast("setRecognizerByName: " + e.toString());
+                self.onError(e);
             }
             return false;
         };
@@ -484,14 +470,18 @@
     };
 
     //pass in the ID of the element that the canvas should be initialized in
+    //errorHandler is a function that accepts an exception as the only argument
+    //messageHandler is a function that accepts a string as the only argument
     //TODO: add an callback for when the ink has been recognized
-    //TODO: allow an errorHandler and messageHandler to be passed in
-    global.InkCanvas.prototype.initializeInk = function (elementId) {
+    global.InkCanvas.prototype.initializeInk = function (elementId, errorHandler, messageHandler) {
         var self = this;
         // Utility to fetch elements by ID.
         function id(elementId) {
             return document.getElementById(elementId);
         }
+
+        self.onError = errorHandler;
+        self.sendNotification = messageHandler;
 
         WinJS.UI.processAll().then(
             function () {
@@ -518,7 +508,7 @@
                 self.inkCanvas.addEventListener("MSGestureTap", self.EventHandler.handleTap, false);
 
                 if (!self.setRecognizerByName("Microsoft English (US) Handwriting Recognizer")) {
-                    self.toast("Failed to find English (US) recognizer");
+                    self.sendNotification("Failed to find English (US) recognizer");
                 }
 
                 self.inkMode();
@@ -527,7 +517,7 @@
             function () {
             },
             function (e) {
-                self.toast("inkInitialize " + e.toString());
+                self.onError("inkInitialize " + e.toString());
             }
         );
     };
