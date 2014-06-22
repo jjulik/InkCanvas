@@ -83,6 +83,9 @@
         // If false the handwriting will be cleared
         var handwritingRecognitionCallback = null;
 
+        // Controls whether the canvas accepts input.
+        var canvasEnabled = true;
+
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
 
         // Convenience function used by color converters.
@@ -220,6 +223,9 @@
             // We will accept pen down, mouse left down, or touch down as the start of a stroke.
             handlePointerDown : function(evt) {
                 try {
+                    if (!canvasEnabled) {
+                        return false;
+                    }
                     resetClearQueue();
                     if (evt.button === 0) {
                         // Clear any current selection.
@@ -251,6 +257,9 @@
 
             handlePointerMove : function(evt) {
                 try {
+                    if (!canvasEnabled) {
+                        return false;
+                    }
                     if (evt.pointerId === penID) {
                         var pt = evt.currentPoint;
                         context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
@@ -271,6 +280,9 @@
 
             handlePointerUp : function(evt) {
                 try {
+                    if (!canvasEnabled) {
+                        return false;
+                    }
                     if (evt.pointerId === penID) {
                         penID = -1;
                         var pt = evt.currentPoint;
@@ -292,6 +304,9 @@
             // it completes the stroke.
             handlePointerOut : function(evt) {
                 try {
+                    if (!canvasEnabled) {
+                        return false;
+                    }
                     if (evt.pointerId === penID) {
                         var pt = evt.currentPoint;
                         context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
@@ -489,6 +504,18 @@
             }
             return false;
         }
+
+        // Publicly Accessible functions go down here
+
+        // Sets whether the canvas is enabled. By default the canvas is enabled.
+        self.setCanvasEnabled = function(value) {
+            canvasEnabled = value;
+        };
+
+        // Returns whether the canvas is enabled.
+        self.getCanvasEnabled = function() {
+            return canvasEnabled;
+        };
 
         // elementId is the ID of the element that the canvas should be initialized in
         // (optional) configuration is an object with the following properties:
