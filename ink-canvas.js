@@ -71,10 +71,10 @@
         self.savedStyle = null;
         self.savedMode = null;
 
-        //dictionary of chars to lists of chars
-        //if any of the letters in the list is detected by handwriting recognition
-        //it should accept the char key as input
-        //Otherwise it will notify a list of conversions every time handwriting recognition occurs
+        // Dictionary of chars to lists of chars
+        // If any of the letters in the list is detected by handwriting recognition
+        // it should accept the char key as input.
+        // Otherwise it will notify a list of conversions every time handwriting recognition occurs.
         self.conversionDictionary = null;
 
         // Keeps track of whether we have already called clear (clear is usually called on a timeout to give the user
@@ -244,7 +244,8 @@
 
                         pt = evt.currentPoint;
 
-                        if (pt.properties.isEraser) // the back side of a pen, which we treat as an eraser
+                        // the back side of a pen, which we treat as an eraser
+                        if (pt.properties.isEraser)
                         {
                             tempEraseMode();
                         }
@@ -344,7 +345,7 @@
             }
         }
 
-        //Draws a single stroke into a specified canvas 2D context, with a specified color and width.
+        // Draws a single stroke into a specified canvas 2D context, with a specified color and width.
         function renderStroke(stroke, color, width, ctx) {
             ctx.save();
 
@@ -411,12 +412,12 @@
             }
         }
 
-        //calls asynchronous handwriting recognition, which returns a list of results
-        //each result has a list of potential text candidates
-        //we use the conversion dictionary to check against all potential text candidates
-        //to see if we have valid input.
+        // Calls asynchronous handwriting recognition, which returns a list of results.
+        // Each result has a list of potential text candidates.
+        // We use the conversion dictionary to check against all potential text candidates
+        // to see if we have valid input.
 
-        //if the handwriting is recognized as valid input we call handwritingRecognitionCallback
+        // If the handwriting is recognized as valid input we call handwritingRecognitionCallback
         function find() {
             try {
                 resetClearQueue();
@@ -431,15 +432,15 @@
                             valid = checkForValidRecognitionResults(results);
                             if (valid) {
                                 if (self.handwritingRecognitionCallback && !self.handwritingRecognitionCallback(valid)) {
-                                    //means there is a callback and the callback rejected the input
-                                    //so we should clear the canvas immediately
+                                    // Means there is a callback and the callback rejected the input
+                                    // so we should clear the canvas immediately
                                     self.clear();
                                     resetClearQueue();
                                 }
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
-                                //give the user some time to make their input valid
-                                //if they do not respond in time, clear the canvas
+                                // Give the user some time to make their input valid.
+                                // Clear the canvas if they do not respond in time
                                 if (self.queuedClear) {
                                     clearTimeout();
                                 }
@@ -462,8 +463,8 @@
             return false;
         }
 
-        // Checks the handwriting recognition results for valid input according to the conversion dictionary
-        // If any valid input is found, the appropriate key from the conversion dictionary is returned
+        // Checks the handwriting recognition results for valid input according to the conversion dictionary.
+        // If any valid input is found, the appropriate key from the conversion dictionary is returned.
         function checkForValidRecognitionResults(recognitionResults) {
             var i, j, key, m, textCandidates;
             for (i = 0; i < recognitionResults.length; i++) {
@@ -508,8 +509,8 @@
         return self;
     };
 
-    //elementId is the ID of the element that the canvas should be initialized in
-    //(optional) configuration is an object with the following properties:
+    // elementId is the ID of the element that the canvas should be initialized in
+    // (optional) configuration is an object with the following properties:
     //  errorHandler is a function that accepts an exception as the only argument
     //  messageHandler is a function that accepts a string as the only argument
     //  alphabetDictionary defines the language that should be accepted as input by handwriting recognition
@@ -517,6 +518,18 @@
     //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
     //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
     //  clearTimeoutDuration is the amount of time in milliseconds to wait before clearing the canvas if the input is invalid
+
+    // Sample configuration:
+    // {
+    //  errorHandler : function(ex) { throw ex; },
+    //  messageHandler: function(message) { Debug.writeLn(message); },
+    //  alphabetDictionary : [
+    //      "X": ["x","X","%","T","t"],
+    //      "O": ["o","O","0","Q"]
+    //  ],
+    //  recognitionCallback: function(value) { Debug.writeLn("Input recognized: " + value); },
+    //  clearTimeoutDuration: 2000
+    // }
     window.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
         var self = this;
 
