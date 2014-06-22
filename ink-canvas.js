@@ -1,4 +1,6 @@
-﻿(function (global, Windows, WinJS) {
+﻿/* global Windows */
+/* global WinJS */
+(function (global, Windows, WinJS) {
     "use strict";
 
     global.InkCanvas = function() {
@@ -66,6 +68,16 @@
         self.savedContext = null;
         self.savedStyle = null;
         self.savedMode = null;
+
+        //dictionary of chars to lists of chars
+        //if any of the letters in the list is detected by handwriting recognition
+        //it should accept the char key as input
+        //Otherwise it will notify a list of conversions every time handwriting recognition occurs
+        self.conversionDictionary = null;
+
+        // Keeps track of whether we have already called clear
+        // if so there is no need to schedule another clear
+        self.queuedClear = null;
 
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
 
@@ -211,7 +223,7 @@
             // We will accept touch down or mouse right down as the start of a touch.
             handlePointerDown : function(evt) {
                 try {
-
+                    checkForClear();
                     if (evt.button === 0) {
                         // Clear any current selection.
                         var pt = { x: 0.0, y: 0.0 };
@@ -300,7 +312,7 @@
 
         // Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,
         // then the paper is drawn, then all the strokes are drawn.
-        function renderAllStrokes()
+        function renderAllStrokes(dontFind)
         {
             self.inkContext.clearRect(0, 0, self.inkCanvas.width, self.inkCanvas.height);
 
@@ -323,7 +335,9 @@
                 }
             });
 
-            find();
+            if (!dontFind) {
+                find();
+            }
         }
 
         //Draws a single stroke into a specified canvas 2D context, with a specified color and width.
@@ -359,6 +373,37 @@
             }
         }
 
+        // Makes all strokes a part of the selection.
+        function selectAllStrokes()
+        {
+            self.inkManager.getStrokes().forEach(function (stroke) {
+                stroke.selected = true;
+            });
+        }
+
+        function clear()
+        {
+            try
+            {
+                selectAllStrokes();
+                self.inkManager.deleteSelected();
+                self.inkMode();
+
+                renderAllStrokes(true);
+            }
+            catch (e)
+            {
+                self.onError(e);
+            }
+        }
+
+        function checkForClear() {
+            if (self.queuedClear) {
+                window.clearTimeout(self.queuedClear);
+                self.queuedClear = null;
+            }
+        }
+
         //TODO: update documentation
 
         // A handler for the Find button in the Find flyout.  We fetch the search string
@@ -377,14 +422,28 @@
         // "this" appears in any of the other 4 recognition alternates for this ink.
         function find() {
             try {
+                checkForClear();
                 self.inkManager.recognizeAsync(Windows.UI.Input.Inking.InkRecognitionTarget.all).done
                 (
                     function (results) {
-                        var i;
+                        var i, valid;
                         self.inkManager.updateRecognitionResults(results);
 
-                        for (i = 0; i < results.length; i++) {
-                            self.sendNotification("Results: " + results[i].getTextCandidates().join());
+
+                        if (self.conversionDictionary) {
+                            valid = checkForValidRecognitionResults(results);
+                            if (valid) {
+                                self.sendNotification("Found valid conversion: " + valid);
+                            } else {
+                                //give them 3 seconds to make it valid or clear the input
+                                if (!self.queuedClear) {
+                                    self.queuedClear = window.setTimeout(clear, 1000);
+                                }
+                            }
+                        } else {
+                            for (i = 0; i < results.length; i++) {
+                                self.sendNotification("Results: " + results[i].getTextCandidates().join());
+                            }
                         }
                     },
                     function (e) {
@@ -394,6 +453,23 @@
             }
             catch (e) {
                 self.onError(e);
+            }
+            return false;
+        }
+
+        function checkForValidRecognitionResults(recognitionResults) {
+            var i, j, key, m, textCandidates;
+            for (i = 0; i < recognitionResults.length; i++) {
+                textCandidates = recognitionResults[i].getTextCandidates();
+                for (j = 0; j < textCandidates.length; j++) {
+                    for (key in self.conversionDictionary) {
+                        for (m = 0; m < self.conversionDictionary[key].length; m++) {
+                            if (textCandidates[j] == self.conversionDictionary[key][m]) {
+                                return key;
+                            }
+                        }
+                    }
+                }
             }
             return false;
         }
@@ -428,9 +504,11 @@
     //pass in the ID of the element that the canvas should be initialized in
     //errorHandler is a function that accepts an exception as the only argument
     //messageHandler is a function that accepts a string as the only argument
+    //alphabetDictionary defines the language that should be accepted as input by handwriting recognition
+    //  the dictionary should have chars for keys and lists of chars as values.
+    //  if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
     //TODO: add an callback for when the ink has been recognized (Maybe don't do this?)
-    //TODO: add a parameter that is a list of objects each containing a char and a list of chars to accepts as the char
-    global.InkCanvas.prototype.initializeInk = function (elementId, errorHandler, messageHandler) {
+    global.InkCanvas.prototype.initializeInk = function (elementId, errorHandler, messageHandler, alphabetDictionary) {
         var self = this;
         // Utility to fetch elements by ID.
         function id(elementId) {
@@ -439,6 +517,8 @@
 
         self.onError = errorHandler;
         self.sendNotification = messageHandler;
+
+        self.conversionDictionary = alphabetDictionary;
 
         WinJS.UI.processAll().then(
             function () {
