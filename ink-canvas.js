@@ -77,10 +77,16 @@
         //Otherwise it will notify a list of conversions every time handwriting recognition occurs
         self.conversionDictionary = null;
 
-        // Keeps track of whether we have already called clear (clear is usually called on a 1000 ms timeout to give the user
+        // Keeps track of whether we have already called clear (clear is usually called on a timeout to give the user
         // more time to finish inking)
         // if so there is no need to schedule another clear
         self.queuedClear = null;
+
+        // The default value for clearTimeout is 1000 ms
+        // This can be overridden by the configuration in initializeInk()
+        // This is how long we should wait before clearing invalid input
+        // It will be reset as soon as the user touches, clicks, or draws on the canvas
+        self.clearTimeoutDuration = 1000;
 
         //handwritingRecognitionCallback depends upon conversionDictionary being set for it to work
 
@@ -432,12 +438,12 @@
                                 }
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
-                                //TODO: turn this time into a setting that can be passed in upon initialization
-                                //give them 1000 ms to make it valid or clear the canvas
+                                //give the user some time to make their input valid
+                                //if they do not respond in time, clear the canvas
                                 if (self.queuedClear) {
                                     clearTimeout();
                                 }
-                                self.queuedClear = window.setTimeout(self.clear, 1000);
+                                self.queuedClear = window.setTimeout(self.clear, self.clearTimeoutDuration);
                             }
                         } else {
                             for (i = 0; i < results.length; i++) {
@@ -524,6 +530,10 @@
             self.conversionDictionary = configuration.alphabetDictionary;
 
             self.handwritingRecognitionCallback = configuration.recognitionCallback;
+
+            if (configuration.clearTimeoutDuration) {
+                self.clearTimeoutDuration = configuration.clearTimeoutDuration;
+            }
         }
 
         WinJS.UI.processAll().then(
