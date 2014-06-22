@@ -155,28 +155,28 @@
             return Windows.UI.Colors.gray;
         }
 
-        function clearMode()
-        {
+        // There are 2 modes: temporary erase mode and ink mode
+        // These functions clear, save, and restore the current mode
+        // More modes could be added for more functionality
+        // Look at the microsoft ink samples for highlight, select, and erase modes
+
+        function clearMode() {
             self.savedContext = null;
             self.savedStyle = null;
             self.savedCursor = null;
             self.savedMode = null;
         }
 
-        function saveMode()
-        {
-            if (!self.savedContext)
-            {
+        function saveMode() {
+            if (!self.savedContext) {
                 self.savedStyle = self.context.strokeStyle;
                 self.savedContext = self.context;
                 self.savedMode = self.inkManager.mode;
             }
         }
 
-        function restoreMode()
-        {
-            if (self.savedContext)
-            {
+        function restoreMode() {
+            if (self.savedContext) {
                 self.context = self.savedContext;
                 self.context.strokeStyle = self.savedStyle;
                 self.inkManager.mode = self.savedMode;
@@ -319,6 +319,7 @@
 
         // Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,
         // then the paper is drawn, then all the strokes are drawn.
+        // dontFind determines whether we should perform handwriting recognition
         function renderAllStrokes(dontFind)
         {
             self.inkContext.clearRect(0, 0, self.inkCanvas.width, self.inkCanvas.height);
