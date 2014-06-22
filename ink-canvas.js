@@ -1,9 +1,10 @@
 ﻿/* global Windows */
 /* global WinJS */
-(function (global, Windows, WinJS) {
+/* global Debug */
+(function (window, Windows, WinJS, Debug) {
     "use strict";
 
-    global.InkCanvas = function() {
+    window.InkCanvas = function() {
         var self = this;
 
         // Error handler and message handler to be passed in
@@ -11,6 +12,7 @@
             throw ex;
         };
         self.sendNotification = function (message) {
+            Debug.writeln(message);
         };
 
         // Variables representing the ink interface.
@@ -219,7 +221,6 @@
             self.drawingAttributes.size = strokeSize;
 
             var color = toColorStruct(self.context.strokeStyle);
-            color.a = 255;
             self.drawingAttributes.color = color;
             self.inkManager.setDefaultDrawingAttributes(self.drawingAttributes);
         }
@@ -229,7 +230,7 @@
             // We will accept pen down, mouse left down, or touch down as the start of a stroke.
             handlePointerDown : function(evt) {
                 try {
-                    checkForClear();
+                    resetClearQueue();
                     if (evt.button === 0) {
                         // Clear any current selection.
                         var pt = { x: 0.0, y: 0.0 };
@@ -387,6 +388,7 @@
             });
         }
 
+        // Clears the canvas of all strokes
         self.clear = function()
         {
             try
@@ -403,32 +405,24 @@
             }
         };
 
-        function checkForClear() {
+        // Prevents any queued calls to clear from happening
+        // then empties the queue
+        function resetClearQueue() {
             if (self.queuedClear) {
                 window.clearTimeout(self.queuedClear);
                 self.queuedClear = null;
             }
         }
 
-        //TODO: update documentation
+        //calls asynchronous handwriting recognition, which returns a list of results
+        //each result has a list of potential text candidates
+        //we use the conversion dictionary to check against all potential text candidates
+        //to see if we have valid input.
 
-        // A handler for the Find button in the Find flyout.  We fetch the search string
-        // from the form, and the array of recognition results objects from the ink
-        // manager.  We unselect any current selection, so that when we are done
-        // the selections will reflect the search results.  We split the search string into
-        // individual words, since our recognition results objects each represent individual
-        // words.  The actual matching is done by findWord(), defined above.
-
-        // Note that multiple instances of a target can be found; if the target is "this" and
-        // the ink contains "this is this is that", 2 instances of "this" will be found and all
-        // strokes in both words will be selected.
-
-        // Note that findWord() above searches all alternates.  This means you might write
-        // "this", have it mis-recognized as "these", but the search feature MAY find it, if
-        // "this" appears in any of the other 4 recognition alternates for this ink.
+        //if the handwriting is recognized as valid input we call handwritingRecognitionCallback
         function find() {
             try {
-                checkForClear();
+                resetClearQueue();
                 self.inkManager.recognizeAsync(Windows.UI.Input.Inking.InkRecognitionTarget.all).done
                 (
                     function (results) {
@@ -443,10 +437,11 @@
                                     //means there is a callback and the callback rejected the input
                                     //so we should clear the canvas immediately
                                     self.clear();
-                                    checkForClear();
+                                    resetClearQueue();
                                 }
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
+                                //TODO: turn this time into a setting that can be passed in upon initialization
                                 //give them 1000 ms to make it valid or clear the canvas
                                 if (self.queuedClear) {
                                     clearTimeout();
@@ -470,6 +465,8 @@
             return false;
         }
 
+        // Checks the handwriting recognition results for valid input according to the conversion dictionary
+        // If any valid input is found, the appropriate key from the conversion dictionary is returned
         function checkForValidRecognitionResults(recognitionResults) {
             var i, j, key, m, textCandidates;
             for (i = 0; i < recognitionResults.length; i++) {
@@ -522,7 +519,7 @@
     //      the dictionary should have chars for keys and lists of chars as values.
     //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
     //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
-    global.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
+    window.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
         var self = this;
 
         if (configuration) {
@@ -545,7 +542,7 @@
                 parent.appendChild(canvasElement);
 
                 self.inkCanvas = canvasElement;
-                self.inkCanvas.gestureObject = new global.MSGesture();
+                self.inkCanvas.gestureObject = new window.MSGesture();
                 self.inkCanvas.gestureObject.target = self.inkCanvas;
                 self.inkCanvas.setAttribute("width", self.inkCanvas.offsetWidth);
                 self.inkCanvas.setAttribute("height", self.inkCanvas.offsetHeight);
@@ -577,4 +574,4 @@
             }
         );
     };
-}(window, Windows, WinJS));
+}(window, Windows, WinJS, Debug));
