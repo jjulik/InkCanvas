@@ -83,8 +83,16 @@
         // If false the handwriting will be cleared
         var handwritingRecognitionCallback = null;
 
-        // Controls whether the canvas accepts input.
+        // Controls whether the canvas is currently accepting user input (pen, mouse, touch).
         var canvasEnabled = true;
+
+        // Controls whether handwriting should automatically be converted to text.
+        // When handwriting is recognized as valid input, the canvas will be cleared, disabled
+        // and covered by an overlay that contains the text that was recognized
+        var autoConvertHandwritingToText = false;
+
+        // A reference to the element that contains the text to display if autoConvertHandwritingToText is enabled
+        var textOverlayElement;
 
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
 
@@ -430,12 +438,21 @@
                         if (conversionDictionary) {
                             valid = checkForValidRecognitionResults(results);
                             if (valid) {
+                                // Call the handwriting recognition callback
                                 if (handwritingRecognitionCallback && !handwritingRecognitionCallback(valid)) {
                                     // Means there is a callback and the callback rejected the input
                                     // so we should clear the canvas immediately
                                     self.clear();
                                     resetClearQueue();
+                                    return false;
                                 }
+                                // Check to see if we should automatically convert the handwriting to text
+                                if (autoConvertHandwritingToText) {
+                                    displayTextOverlay(valid);
+                                    canvasEnabled = false;
+                                    self.clear();
+                                }
+
                                 sendNotification("Found valid conversion: " + valid);
                             } else {
                                 // Give the user some time to make their input valid.
@@ -479,6 +496,15 @@
                 }
             }
             return false;
+        }
+
+        function displayTextOverlay(text) {
+            textOverlayElement.innerText = text;
+            textOverlayElement.style.zIndex = "6"; 
+        }
+
+        function hideTextOverlay() {
+            textOverlayElement.style.zIndex = "4";
         }
 
         // Finds a specific recognizer, and sets the inkManager's default to that recognizer.
@@ -526,6 +552,9 @@
         //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
         //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
         //  clearTimeoutDuration is the amount of time in milliseconds to wait before clearing the canvas if the input is invalid
+        //  autoConvertHandwritingToText determines whether the canvas should automatically change to text upon handwriting recognition
+        //      accepting a character
+        //  fontSize is the css font size for text
 
         // Sample configuration:
         // {
@@ -536,9 +565,13 @@
         //      "O": ["o","O","0","Q"]
         //  ],
         //  recognitionCallback: function(value) { Debug.writeLn("Input recognized: " + value); },
-        //  clearTimeoutDuration: 2000
+        //  clearTimeoutDuration: 2000,
+        //  autoConvertHandwritingToText: true,
+        //  fontSize: "10rem"
         // }
         self.initializeInk = function (elementId, configuration) {
+            var fontSize = "4rem";
+
             if (configuration) {
                 if (configuration.errorHandler) {
                     onError = configuration.errorHandler;
@@ -554,6 +587,14 @@
                 if (configuration.clearTimeoutDuration) {
                     clearTimeoutDuration = configuration.clearTimeoutDuration;
                 }
+
+                if (configuration.autoConvertHandwritingToText) {
+                    autoConvertHandwritingToText = configuration.autoConvertHandwritingToText;
+                }
+
+                if (configuration.fontSize) {
+                    fontSize = configuration.fontSize;
+                }
             }
 
             WinJS.UI.processAll().then(
@@ -568,6 +609,8 @@
                     inkCanvas.setAttribute("width", inkCanvas.offsetWidth);
                     inkCanvas.setAttribute("height", inkCanvas.offsetHeight);
                     inkCanvas.style.backgroundColor = "White";
+                    inkCanvas.style.position = "relative";
+                    inkCanvas.style.zIndex = "5";
                     inkContext = inkCanvas.getContext("2d");
                     inkContext.lineWidth = 2;
                     inkContext.strokeStyle = "Black";
@@ -580,6 +623,19 @@
                     inkCanvas.addEventListener("pointerout", EventHandler.handlePointerOut, false);
                     inkCanvas.addEventListener("MSGestureStart", EventHandler.handlePointerDown, false);
                     inkCanvas.addEventListener("MSGestureEnd", EventHandler.handlePointerUp, false);
+
+                    textOverlayElement = document.createElement("div");
+                    textOverlayElement.style.backgroundColor = "White";
+                    textOverlayElement.style.color = "Black";
+                    textOverlayElement.style.position = "absolute";
+                    textOverlayElement.style.top = "0";
+                    textOverlayElement.style.width = "100%";
+                    textOverlayElement.style.height = "100%";
+                    textOverlayElement.style.zIndex = "4";
+                    textOverlayElement.style.textAlign = "center";
+                    textOverlayElement.style.fontSize = fontSize;
+                    textOverlayElement.style.lineHeight = inkCanvas.offsetHeight + "px";
+                    parent.appendChild(textOverlayElement);
 
                     if (!setRecognizerByName("Microsoft English (US) Handwriting Recognizer")) {
                         sendNotification("Failed to find English (US) recognizer");
