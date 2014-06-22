@@ -80,6 +80,15 @@
         // if so there is no need to schedule another clear
         self.queuedClear = null;
 
+        //handwritingRecognitionCallback depends upon conversionDictionary being set for it to work
+
+        // This is an optional callback the user can send in when initializing ink.
+        // It is called with the string that was recognized whenever valid handwriting is recognized
+        // If the callback is not null it will expect a true or false return value
+        // The return value decides whether the string should be accepted as input
+        // If false the handwriting will be cleared
+        self.handwritingRecognitionCallback = null;
+
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
 
         // Convenience function used by color converters.
@@ -430,6 +439,12 @@
                         if (self.conversionDictionary) {
                             valid = checkForValidRecognitionResults(results);
                             if (valid) {
+                                if (self.handwritingRecognitionCallback && !self.handwritingRecognitionCallback(valid)) {
+                                    //means there is a callback and the callback rejected the input
+                                    //so we should clear the canvas immediately
+                                    clear();
+                                    checkForClear();
+                                }
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
                                 //give them 1 seconds to make it valid or clear the input
@@ -499,24 +514,33 @@
         return self;
     };
 
-    //pass in the ID of the element that the canvas should be initialized in
-    //errorHandler is a function that accepts an exception as the only argument
-    //messageHandler is a function that accepts a string as the only argument
-    //alphabetDictionary defines the language that should be accepted as input by handwriting recognition
-    //  the dictionary should have chars for keys and lists of chars as values.
-    //  if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
-    //TODO: add an callback for when the ink has been recognized (Maybe don't do this?)
-    global.InkCanvas.prototype.initializeInk = function (elementId, errorHandler, messageHandler, alphabetDictionary) {
+    //elementId is the ID of the element that the canvas should be initialized in
+    //(optional) configuration is an object with the following properties:
+    //  errorHandler is a function that accepts an exception as the only argument
+    //  messageHandler is a function that accepts a string as the only argument
+    //  alphabetDictionary defines the language that should be accepted as input by handwriting recognition
+    //      the dictionary should have chars for keys and lists of chars as values.
+    //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
+    //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
+    global.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
         var self = this;
         // Utility to fetch elements by ID.
         function id(elementId) {
             return document.getElementById(elementId);
         }
 
-        self.onError = errorHandler;
-        self.sendNotification = messageHandler;
+        if (configuration) {
+            if (configuration.errorHandler) {
+                self.onError = configuration.errorHandler;
+            }
+            if (configuration.messageHandler) {
+                self.sendNotification = configuration.messageHandler;
+            }
 
-        self.conversionDictionary = alphabetDictionary;
+            self.conversionDictionary = configuration.alphabetDictionary;
+
+            self.handwritingRecognitionCallback = configuration.recognitionCallback;
+        }
 
         WinJS.UI.processAll().then(
             function () {
