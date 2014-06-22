@@ -516,6 +516,7 @@
     //      the dictionary should have chars for keys and lists of chars as values.
     //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
     //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
+    //  clearTimeoutDuration is the amount of time in milliseconds to wait before clearing the canvas if the input is invalid
     window.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
         var self = this;
 
