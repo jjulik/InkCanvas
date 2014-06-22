@@ -75,7 +75,8 @@
         //Otherwise it will notify a list of conversions every time handwriting recognition occurs
         self.conversionDictionary = null;
 
-        // Keeps track of whether we have already called clear
+        // Keeps track of whether we have already called clear (clear is usually called on a 1000 ms timeout to give the user
+        // more time to finish inking)
         // if so there is no need to schedule another clear
         self.queuedClear = null;
 
@@ -172,14 +173,11 @@
             }
         }
 
-        //TODO: update documentation
-
-        // Five functions to switch back and forth between ink mode, highlight mode, select mode, and erase mode.
-        // There is also a temp erase mode, which uses the saveMode()/restoreMode() functions to
+        // 2 functions to switch back and forth between ink mode and a temp erase mode, which uses the saveMode()/restoreMode() functions to
         // return us to our previous mode when done erasing.  This is used for quick erasers using the back end
         // of the pen (for those pens that have that).
         // NOTE: The erase modes also attempt to set the mouse/pen cursor to the image of a chalkboard eraser
-        // (stored in images/erase.cur), but as of this writing cursor switching is not working.
+        // (stored in images/erase.cur), but as of this writing cursor switching is not working (the cursor switching part may have been removed).
 
         self.inkMode = function()
         {
@@ -219,8 +217,7 @@
 
         //Event handler region
         self.EventHandler = {
-            // We will accept pen down or mouse left down as the start of a stroke.
-            // We will accept touch down or mouse right down as the start of a touch.
+            // We will accept pen down, mouse left down, or touch down as the start of a stroke.
             handlePointerDown : function(evt) {
                 try {
                     checkForClear();
