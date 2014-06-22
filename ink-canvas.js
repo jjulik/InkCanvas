@@ -330,17 +330,7 @@
                 var color = toColorString(att.color);
                 var strokeSize = att.size;
                 var width = strokeSize.width;
-                if (stroke.selected)
-                {
-                    renderStroke(stroke, color, width * 2, self.inkContext);
-                    var stripe = "White";
-                    var w = width - 1;
-                    renderStroke(stroke, stripe, w, self.inkContext);
-                }
-                else
-                {
-                    renderStroke(stroke, color, width, self.inkContext);
-                }
+                renderStroke(stroke, color, width, self.inkContext);
             });
 
             if (!dontFind) {
