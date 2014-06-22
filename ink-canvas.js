@@ -436,9 +436,10 @@
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
                                 //give them 1 seconds to make it valid or clear the input
-                                if (!self.queuedClear) {
-                                    self.queuedClear = window.setTimeout(clear, 1000);
+                                if (self.queuedClear) {
+                                    clearTimeout();
                                 }
+                                self.queuedClear = window.setTimeout(clear, 1000);
                             }
                         } else {
                             for (i = 0; i < results.length; i++) {
