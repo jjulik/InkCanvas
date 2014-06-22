@@ -447,7 +447,7 @@
                                 }
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
-                                //give them 1 seconds to make it valid or clear the input
+                                //give them 1000 ms to make it valid or clear the canvas
                                 if (self.queuedClear) {
                                     clearTimeout();
                                 }
@@ -524,10 +524,6 @@
     //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
     global.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
         var self = this;
-        // Utility to fetch elements by ID.
-        function id(elementId) {
-            return document.getElementById(elementId);
-        }
 
         if (configuration) {
             if (configuration.errorHandler) {
@@ -544,7 +540,7 @@
 
         WinJS.UI.processAll().then(
             function () {
-                var parent = id(elementId);
+                var parent = document.getElementById(elementId);
                 var canvasElement = document.createElement("canvas");
                 parent.appendChild(canvasElement);
 
