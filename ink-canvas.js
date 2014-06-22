@@ -8,10 +8,10 @@
         var self = this;
 
         // Error handler and message handler to be passed in
-        self.onError = function (ex) {
+        var onError = function (ex) {
             throw ex;
         };
-        self.sendNotification = function (message) {
+        var sendNotification = function (message) {
             Debug.writeln(message);
         };
 
@@ -19,15 +19,14 @@
         // The usage of a global variable for drawingAttributes is not completely necessary,
         // just a convenience.  One could always re-fetch the current drawingAttributes
         // from the inkManager.
-        self.inkManager = new Windows.UI.Input.Inking.InkManager();
-        self.drawingAttributes = new Windows.UI.Input.Inking.InkDrawingAttributes();
-        self.drawingAttributes.fitToCurve = true;
-        self.inkManager.setDefaultDrawingAttributes(self.drawingAttributes);
+        var inkManager = new Windows.UI.Input.Inking.InkManager();
+        var drawingAttributes = new Windows.UI.Input.Inking.InkDrawingAttributes();
+        drawingAttributes.fitToCurve = true;
+        inkManager.setDefaultDrawingAttributes(drawingAttributes);
 
-        // These are the global canvases (and their 2D contexts) for highlighting, for drawing ink,
-        // and for lassoing (and erasing).
-        self.inkCanvas = null;
-        self.inkContext = null;
+        // This is the canvas for drawing ink and its 2d context
+        var inkCanvas = null;
+        var inkContext = null;
 
         // Global memory of the current pointID (for pen, and, separately, for touch).
         // We ignore handlePointerMove() and handlePointerUp() calls that don't use the same
@@ -41,24 +40,11 @@
 
         // Note that when the pen fails to leave the area where it can be sensed, it does NOT
         // get a new ID; so it is possible for 2 or more consecutive strokes to have the same ID.
+        var penID = -1;
 
-        self.penID = -1;
-
-        // The "mode" of whether we are highlighting, inking, lassoing, or erasing is controlled by this global variable,
-        // which should be pointing to either hlContext, inkContext, or selContext.
-        // In lassoing mode (when context points to selContext), we might also be in erasing mode;
-        // the state of lassoing vs. erasing is kept inside the ink manager, in attribute "mode", which will
-        // have a value from enum Windows.UI.Input.Inking.InkManipulationMode, one of either "selecting"
-        // or "erasing" (the other value being "inking" but in that case context will be pointing to one of the other
-        // 2 canvases).
-        self.context = null;
-
-        // Global variable representing the pattern used when in select mode.  This is an 8*1 image with 4 bits set,
-        // then 4 bits cleared, to give us a dashed line when drawing a lasso.
-        self.selPattern = null;
-
-        // Event handlers
-        self.EventHandler = null;
+        // The "mode" of whether we are inking or erasing is controlled by this global variable,
+        // which should be pointing to inkContext.
+        var context = null;
 
         // Note that we can get into erasing mode in one of two ways: there is a eraser button in the toolbar,
         // and some pens have an active back end that is meant to represent erasing.  If we get into erasing
@@ -67,26 +53,26 @@
         // end of the stylus.  And we want to return to the mode we were in before this happened.  Thus we
         // maintain a shallow stack (depth 1) of "mode" info.
 
-        self.savedContext = null;
-        self.savedStyle = null;
-        self.savedMode = null;
+        var savedContext = null;
+        var savedStyle = null;
+        var savedMode = null;
 
         // Dictionary of chars to lists of chars
         // If any of the letters in the list is detected by handwriting recognition
         // it should accept the char key as input.
         // Otherwise it will notify a list of conversions every time handwriting recognition occurs.
-        self.conversionDictionary = null;
+        var conversionDictionary = null;
 
         // Keeps track of whether we have already called clear (clear is usually called on a timeout to give the user
         // more time to finish inking)
         // if so there is no need to schedule another clear
-        self.queuedClear = null;
+        var queuedClear = null;
 
         // The default value for clearTimeout is 1000 ms
         // This can be overridden by the configuration in initializeInk()
         // This is how long we should wait before clearing invalid input
         // It will be reset as soon as the user touches, clicks, or draws on the canvas
-        self.clearTimeoutDuration = 1000;
+        var clearTimeoutDuration = 1000;
 
         //handwritingRecognitionCallback depends upon conversionDictionary being set for it to work
 
@@ -95,7 +81,7 @@
         // If the callback is not null it will expect a true or false return value
         // The return value decides whether the string should be accepted as input
         // If false the handwriting will be cleared
-        self.handwritingRecognitionCallback = null;
+        var handwritingRecognitionCallback = null;
 
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
 
@@ -167,25 +153,24 @@
         // Look at the microsoft ink samples for highlight, select, and erase modes
 
         function clearMode() {
-            self.savedContext = null;
-            self.savedStyle = null;
-            self.savedCursor = null;
-            self.savedMode = null;
+            savedContext = null;
+            savedStyle = null;
+            savedMode = null;
         }
 
         function saveMode() {
-            if (!self.savedContext) {
-                self.savedStyle = self.context.strokeStyle;
-                self.savedContext = self.context;
-                self.savedMode = self.inkManager.mode;
+            if (!savedContext) {
+                savedStyle = context.strokeStyle;
+                savedContext = context;
+                savedMode = inkManager.mode;
             }
         }
 
         function restoreMode() {
-            if (self.savedContext) {
-                self.context = self.savedContext;
-                self.context.strokeStyle = self.savedStyle;
-                self.inkManager.mode = self.savedMode;
+            if (savedContext) {
+                context = savedContext;
+                context.strokeStyle = savedStyle;
+                inkManager.mode = savedMode;
                 clearMode();
             }
         }
@@ -195,21 +180,20 @@
         // of the pen (for those pens that have that).
         // NOTE: The erase modes also attempt to set the mouse/pen cursor to the image of a chalkboard eraser
         // (stored in images/erase.cur), but as of this writing cursor switching is not working (the cursor switching part may have been removed).
-
-        self.inkMode = function()
+        function inkMode()
         {
             clearMode();
-            self.context = self.inkContext;
-            self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.inking;
+            context = inkContext;
+            inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.inking;
             setDefaults();
-        };
+        }
 
         function tempEraseMode()
         {
             saveMode();
-            self.inkContext.strokeStyle = "rgba(255,255,255,0.0)";
-            self.context = self.inkContext;
-            self.inkManager.mode = self.inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.erasing;
+            inkContext.strokeStyle = "rgba(255,255,255,0.0)";
+            context = inkContext;
+            inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.erasing;
         }
 
         // Note that we cannot just set the width in stroke.drawingAttributes.size.width,
@@ -222,17 +206,17 @@
         // currently set in the current context.
         function setDefaults()
         {
-            var strokeSize = self.drawingAttributes.size;
-            strokeSize.width = strokeSize.height = self.context.lineWidth;
-            self.drawingAttributes.size = strokeSize;
+            var strokeSize = drawingAttributes.size;
+            strokeSize.width = strokeSize.height = context.lineWidth;
+            drawingAttributes.size = strokeSize;
 
-            var color = toColorStruct(self.context.strokeStyle);
-            self.drawingAttributes.color = color;
-            self.inkManager.setDefaultDrawingAttributes(self.drawingAttributes);
+            var color = toColorStruct(context.strokeStyle);
+            drawingAttributes.color = color;
+            inkManager.setDefaultDrawingAttributes(drawingAttributes);
         }
 
         //Event handler region
-        self.EventHandler = {
+        var EventHandler = {
             // We will accept pen down, mouse left down, or touch down as the start of a stroke.
             handlePointerDown : function(evt) {
                 try {
@@ -240,7 +224,7 @@
                     if (evt.button === 0) {
                         // Clear any current selection.
                         var pt = { x: 0.0, y: 0.0 };
-                        self.inkManager.selectWithLine(pt, pt);
+                        inkManager.selectWithLine(pt, pt);
 
                         pt = evt.currentPoint;
 
@@ -253,54 +237,54 @@
                             restoreMode();
                         }
 
-                        self.context.beginPath();
-                        self.context.moveTo(pt.rawPosition.x, pt.rawPosition.y);
+                        context.beginPath();
+                        context.moveTo(pt.rawPosition.x, pt.rawPosition.y);
 
-                        self.inkManager.processPointerDown(pt);
-                        self.penID = evt.pointerId;
+                        inkManager.processPointerDown(pt);
+                        penID = evt.pointerId;
                     }
                 }
                 catch (e) {
-                    self.onError(e);
+                    onError(e);
                 }
             },
 
             handlePointerMove : function(evt) {
                 try {
-                    if (evt.pointerId === self.penID) {
+                    if (evt.pointerId === penID) {
                         var pt = evt.currentPoint;
-                        self.context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
-                        self.context.stroke();
+                        context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
+                        context.stroke();
                         // Get all the points we missed and feed them to inkManager.
                         // The array pts has the oldest point in position length-1; the most recent point is in position 0.
                         // Actually, the point in position 0 is the same as the point in pt above (returned by evt.currentPoint).
                         var pts = evt.intermediatePoints;
                         for (var i = pts.length - 1; i >= 0 ; i--) {
-                            self.inkManager.processPointerUpdate(pts[i]);
+                            inkManager.processPointerUpdate(pts[i]);
                         }
                     }
                 }
                 catch (e) {
-                    self.onError(e);
+                    onError(e);
                 }
             },
 
             handlePointerUp : function(evt) {
                 try {
-                    if (evt.pointerId === self.penID) {
-                        self.penID = -1;
+                    if (evt.pointerId === penID) {
+                        penID = -1;
                         var pt = evt.currentPoint;
-                        self.context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
-                        self.context.stroke();
-                        self.context.closePath();
+                        context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
+                        context.stroke();
+                        context.closePath();
 
-                        self.inkManager.processPointerUp(pt);
+                        inkManager.processPointerUp(pt);
 
                         renderAllStrokes();
                     }
                 }
                 catch (e) {
-                    self.onError(e);
+                    onError(e);
                 }
             },
 
@@ -308,18 +292,18 @@
             // it completes the stroke.
             handlePointerOut : function(evt) {
                 try {
-                    if (evt.pointerId === self.penID) {
+                    if (evt.pointerId === penID) {
                         var pt = evt.currentPoint;
-                        self.context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
-                        self.context.stroke();
-                        self.context.closePath();
-                        self.inkManager.processPointerUp(pt);
-                        self.penID = -1;
+                        context.lineTo(pt.rawPosition.x, pt.rawPosition.y);
+                        context.stroke();
+                        context.closePath();
+                        inkManager.processPointerUp(pt);
+                        penID = -1;
                         renderAllStrokes();
                     }
                 }
                 catch (e) {
-                    self.onError(e);
+                    onError(e);
                 }
             }
         };
@@ -329,15 +313,15 @@
         // dontFind determines whether we should perform handwriting recognition
         function renderAllStrokes(dontFind)
         {
-            self.inkContext.clearRect(0, 0, self.inkCanvas.width, self.inkCanvas.height);
+            inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
 
-            self.inkManager.getStrokes().forEach(function (stroke)
+            inkManager.getStrokes().forEach(function (stroke)
             {
                 var att = stroke.drawingAttributes;
                 var color = toColorString(att.color);
                 var strokeSize = att.size;
                 var width = strokeSize.width;
-                renderStroke(stroke, color, width, self.inkContext);
+                renderStroke(stroke, color, width, inkContext);
             });
 
             if (!dontFind) {
@@ -374,14 +358,14 @@
             }
             catch (e) {
                 ctx.restore();
-                self.onError(e);
+                onError(e);
             }
         }
 
         // Makes all strokes a part of the selection.
         function selectAllStrokes()
         {
-            self.inkManager.getStrokes().forEach(function (stroke) {
+            inkManager.getStrokes().forEach(function (stroke) {
                 stroke.selected = true;
             });
         }
@@ -392,23 +376,23 @@
             try
             {
                 selectAllStrokes();
-                self.inkManager.deleteSelected();
-                self.inkMode();
+                inkManager.deleteSelected();
+                inkMode();
 
                 renderAllStrokes(true);
             }
             catch (e)
             {
-                self.onError(e);
+                onError(e);
             }
         };
 
         // Prevents any queued calls to clear from happening
         // then empties the queue
         function resetClearQueue() {
-            if (self.queuedClear) {
-                window.clearTimeout(self.queuedClear);
-                self.queuedClear = null;
+            if (queuedClear) {
+                window.clearTimeout(queuedClear);
+                queuedClear = null;
             }
         }
 
@@ -421,44 +405,44 @@
         function find() {
             try {
                 resetClearQueue();
-                self.inkManager.recognizeAsync(Windows.UI.Input.Inking.InkRecognitionTarget.all).done
+                inkManager.recognizeAsync(Windows.UI.Input.Inking.InkRecognitionTarget.all).done
                 (
                     function (results) {
                         var i, valid;
-                        self.inkManager.updateRecognitionResults(results);
+                        inkManager.updateRecognitionResults(results);
 
 
-                        if (self.conversionDictionary) {
+                        if (conversionDictionary) {
                             valid = checkForValidRecognitionResults(results);
                             if (valid) {
-                                if (self.handwritingRecognitionCallback && !self.handwritingRecognitionCallback(valid)) {
+                                if (handwritingRecognitionCallback && !handwritingRecognitionCallback(valid)) {
                                     // Means there is a callback and the callback rejected the input
                                     // so we should clear the canvas immediately
                                     self.clear();
                                     resetClearQueue();
                                 }
-                                self.sendNotification("Found valid conversion: " + valid);
+                                sendNotification("Found valid conversion: " + valid);
                             } else {
                                 // Give the user some time to make their input valid.
                                 // Clear the canvas if they do not respond in time
-                                if (self.queuedClear) {
+                                if (queuedClear) {
                                     clearTimeout();
                                 }
-                                self.queuedClear = window.setTimeout(self.clear, self.clearTimeoutDuration);
+                                queuedClear = window.setTimeout(self.clear, clearTimeoutDuration);
                             }
                         } else {
                             for (i = 0; i < results.length; i++) {
-                                self.sendNotification("Results: " + results[i].getTextCandidates().join());
+                                sendNotification("Results: " + results[i].getTextCandidates().join());
                             }
                         }
                     },
                     function (e) {
-                        self.onError(e);
+                        onError(e);
                     }
                 );
             }
             catch (e) {
-                self.onError(e);
+                onError(e);
             }
             return false;
         }
@@ -470,9 +454,9 @@
             for (i = 0; i < recognitionResults.length; i++) {
                 textCandidates = recognitionResults[i].getTextCandidates();
                 for (j = 0; j < textCandidates.length; j++) {
-                    for (key in self.conversionDictionary) {
-                        for (m = 0; m < self.conversionDictionary[key].length; m++) {
-                            if (textCandidates[j] == self.conversionDictionary[key][m]) {
+                    for (key in conversionDictionary) {
+                        for (m = 0; m < conversionDictionary[key].length; m++) {
+                            if (textCandidates[j] == conversionDictionary[key][m]) {
                                 return key;
                             }
                         }
@@ -484,109 +468,107 @@
 
         // Finds a specific recognizer, and sets the inkManager's default to that recognizer.
         // Returns true if successful.
-        self.setRecognizerByName = function (recname)
+        function setRecognizerByName (recname)
         {
             try
             {
                 // recognizers is a normal JavaScript array
-                var recognizers = self.inkManager.getRecognizers();
+                var recognizers = inkManager.getRecognizers();
                 for (var i = 0, len = recognizers.length; i < len; i++)
                 {
                     if (recname === recognizers[i].name)
                     {
-                        self.inkManager.setDefaultRecognizer(recognizers[i]);
+                        inkManager.setDefaultRecognizer(recognizers[i]);
                         return true;
                     }
                 }
             }
             catch (e)
             {
-                self.onError(e);
+                onError(e);
             }
             return false;
+        }
+
+        // elementId is the ID of the element that the canvas should be initialized in
+        // (optional) configuration is an object with the following properties:
+        //  errorHandler is a function that accepts an exception as the only argument
+        //  messageHandler is a function that accepts a string as the only argument
+        //  alphabetDictionary defines the language that should be accepted as input by handwriting recognition
+        //      the dictionary should have chars for keys and lists of chars as values.
+        //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
+        //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
+        //  clearTimeoutDuration is the amount of time in milliseconds to wait before clearing the canvas if the input is invalid
+
+        // Sample configuration:
+        // {
+        //  errorHandler : function(ex) { throw ex; },
+        //  messageHandler: function(message) { Debug.writeLn(message); },
+        //  alphabetDictionary : [
+        //      "X": ["x","X","%","T","t"],
+        //      "O": ["o","O","0","Q"]
+        //  ],
+        //  recognitionCallback: function(value) { Debug.writeLn("Input recognized: " + value); },
+        //  clearTimeoutDuration: 2000
+        // }
+        self.initializeInk = function (elementId, configuration) {
+            if (configuration) {
+                if (configuration.errorHandler) {
+                    onError = configuration.errorHandler;
+                }
+                if (configuration.messageHandler) {
+                    sendNotification = configuration.messageHandler;
+                }
+
+                conversionDictionary = configuration.alphabetDictionary;
+
+                handwritingRecognitionCallback = configuration.recognitionCallback;
+
+                if (configuration.clearTimeoutDuration) {
+                    clearTimeoutDuration = configuration.clearTimeoutDuration;
+                }
+            }
+
+            WinJS.UI.processAll().then(
+                function () {
+                    var parent = document.getElementById(elementId);
+                    var canvasElement = document.createElement("canvas");
+                    parent.appendChild(canvasElement);
+
+                    inkCanvas = canvasElement;
+                    inkCanvas.gestureObject = new window.MSGesture();
+                    inkCanvas.gestureObject.target = inkCanvas;
+                    inkCanvas.setAttribute("width", inkCanvas.offsetWidth);
+                    inkCanvas.setAttribute("height", inkCanvas.offsetHeight);
+                    inkCanvas.style.backgroundColor = "White";
+                    inkContext = inkCanvas.getContext("2d");
+                    inkContext.lineWidth = 2;
+                    inkContext.strokeStyle = "Black";
+                    inkContext.lineCap = "round";
+                    inkContext.lineJoin = "round";
+
+                    inkCanvas.addEventListener("pointerdown", EventHandler.handlePointerDown, false);
+                    inkCanvas.addEventListener("pointerup", EventHandler.handlePointerUp, false);
+                    inkCanvas.addEventListener("pointermove", EventHandler.handlePointerMove, false);
+                    inkCanvas.addEventListener("pointerout", EventHandler.handlePointerOut, false);
+                    inkCanvas.addEventListener("MSGestureStart", EventHandler.handlePointerDown, false);
+                    inkCanvas.addEventListener("MSGestureEnd", EventHandler.handlePointerUp, false);
+
+                    if (!setRecognizerByName("Microsoft English (US) Handwriting Recognizer")) {
+                        sendNotification("Failed to find English (US) recognizer");
+                    }
+
+                    inkMode();
+                }
+            ).done(
+                function () {
+                },
+                function (e) {
+                    onError(e);
+                }
+            );
         };
 
         return self;
-    };
-
-    // elementId is the ID of the element that the canvas should be initialized in
-    // (optional) configuration is an object with the following properties:
-    //  errorHandler is a function that accepts an exception as the only argument
-    //  messageHandler is a function that accepts a string as the only argument
-    //  alphabetDictionary defines the language that should be accepted as input by handwriting recognition
-    //      the dictionary should have chars for keys and lists of chars as values.
-    //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
-    //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
-    //  clearTimeoutDuration is the amount of time in milliseconds to wait before clearing the canvas if the input is invalid
-
-    // Sample configuration:
-    // {
-    //  errorHandler : function(ex) { throw ex; },
-    //  messageHandler: function(message) { Debug.writeLn(message); },
-    //  alphabetDictionary : [
-    //      "X": ["x","X","%","T","t"],
-    //      "O": ["o","O","0","Q"]
-    //  ],
-    //  recognitionCallback: function(value) { Debug.writeLn("Input recognized: " + value); },
-    //  clearTimeoutDuration: 2000
-    // }
-    window.InkCanvas.prototype.initializeInk = function (elementId, configuration) {
-        var self = this;
-
-        if (configuration) {
-            if (configuration.errorHandler) {
-                self.onError = configuration.errorHandler;
-            }
-            if (configuration.messageHandler) {
-                self.sendNotification = configuration.messageHandler;
-            }
-
-            self.conversionDictionary = configuration.alphabetDictionary;
-
-            self.handwritingRecognitionCallback = configuration.recognitionCallback;
-
-            if (configuration.clearTimeoutDuration) {
-                self.clearTimeoutDuration = configuration.clearTimeoutDuration;
-            }
-        }
-
-        WinJS.UI.processAll().then(
-            function () {
-                var parent = document.getElementById(elementId);
-                var canvasElement = document.createElement("canvas");
-                parent.appendChild(canvasElement);
-
-                self.inkCanvas = canvasElement;
-                self.inkCanvas.gestureObject = new window.MSGesture();
-                self.inkCanvas.gestureObject.target = self.inkCanvas;
-                self.inkCanvas.setAttribute("width", self.inkCanvas.offsetWidth);
-                self.inkCanvas.setAttribute("height", self.inkCanvas.offsetHeight);
-                self.inkCanvas.style.backgroundColor = "White";
-                self.inkContext = self.inkCanvas.getContext("2d");
-                self.inkContext.lineWidth = 2;
-                self.inkContext.strokeStyle = "Black";
-                self.inkContext.lineCap = "round";
-                self.inkContext.lineJoin = "round";
-
-                self.inkCanvas.addEventListener("pointerdown", self.EventHandler.handlePointerDown, false);
-                self.inkCanvas.addEventListener("pointerup", self.EventHandler.handlePointerUp, false);
-                self.inkCanvas.addEventListener("pointermove", self.EventHandler.handlePointerMove, false);
-                self.inkCanvas.addEventListener("pointerout", self.EventHandler.handlePointerOut, false);
-                self.inkCanvas.addEventListener("MSGestureStart", self.EventHandler.handlePointerDown, false);
-                self.inkCanvas.addEventListener("MSGestureEnd", self.EventHandler.handlePointerUp, false);
-
-                if (!self.setRecognizerByName("Microsoft English (US) Handwriting Recognizer")) {
-                    self.sendNotification("Failed to find English (US) recognizer");
-                }
-
-                self.inkMode();
-            }
-        ).done(
-            function () {
-            },
-            function (e) {
-                self.onError(e);
-            }
-        );
     };
 }(window, Windows, WinJS, Debug));
