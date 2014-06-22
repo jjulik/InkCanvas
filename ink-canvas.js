@@ -387,7 +387,7 @@
             });
         }
 
-        function clear()
+        self.clear = function()
         {
             try
             {
@@ -401,7 +401,7 @@
             {
                 self.onError(e);
             }
-        }
+        };
 
         function checkForClear() {
             if (self.queuedClear) {
@@ -442,7 +442,7 @@
                                 if (self.handwritingRecognitionCallback && !self.handwritingRecognitionCallback(valid)) {
                                     //means there is a callback and the callback rejected the input
                                     //so we should clear the canvas immediately
-                                    clear();
+                                    self.clear();
                                     checkForClear();
                                 }
                                 self.sendNotification("Found valid conversion: " + valid);
@@ -451,7 +451,7 @@
                                 if (self.queuedClear) {
                                     clearTimeout();
                                 }
-                                self.queuedClear = window.setTimeout(clear, 1000);
+                                self.queuedClear = window.setTimeout(self.clear, 1000);
                             }
                         } else {
                             for (i = 0; i < results.length; i++) {
