@@ -435,7 +435,7 @@
                             if (valid) {
                                 self.sendNotification("Found valid conversion: " + valid);
                             } else {
-                                //give them 3 seconds to make it valid or clear the input
+                                //give them 1 seconds to make it valid or clear the input
                                 if (!self.queuedClear) {
                                     self.queuedClear = window.setTimeout(clear, 1000);
                                 }
