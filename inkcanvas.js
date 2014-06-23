@@ -543,6 +543,13 @@
             return canvasEnabled;
         };
 
+        // Resets the canvas back to default inkable mode.
+        self.resetCanvas = function() {
+            self.clear();
+            self.setCanvasEnabled(true);
+            hideTextOverlay();
+        };
+
         // elementId is the ID of the element that the canvas should be initialized in
         // (optional) configuration is an object with the following properties:
         //  errorHandler is a function that accepts an exception as the only argument
