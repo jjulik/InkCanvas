@@ -1,0 +1,10 @@
+{
+	"name": "Inky",
+    "description": "A JavaScript library for creating canvases that recognize text automatically and convert the canvas to text.",
+    "version": "1.0.0",
+    "options": {
+    	"linkNatives": "true",
+        "outdir": "./docs",
+        "paths": "."
+    }
+}

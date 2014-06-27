@@ -4,13 +4,48 @@
 (function (window, Windows, WinJS, Debug) {
     "use strict";
 
-    window.InkCanvas = function() {
+    /* Version 1.0.0 */
+    var Inky;
+
+    /**
+     * A library for creating canvases that can recognize handwriting and automatically convert to text.
+     * 
+     * @module Inky
+     * @requires Windows
+     * @requires WinJS
+     * @requires Debug
+     */
+    window.Inky = window.Inky || {};
+
+    Inky = window.Inky;
+
+    /**
+     * A canvas that supports handwriting recognition.
+     *
+     * @class AutoCanvas
+     * @constructor
+     */
+    Inky.AutoCanvas = function() {
         var self = this;
 
-        // Error handler and message handler to be passed in
+        /**
+         * Error handler. Can be overriden when the ink is initialized.
+         *
+         * @event onError
+         * @private
+         * @param {Error} ex The error that was thrown.
+         */
         var onError = function (ex) {
             throw ex;
         };
+
+        /**
+         * Message handler for debugging info. Can be overriden when the ink is initialized.
+         *
+         * @event sendNotification
+         * @private
+         * @param {String} message The message being sent.
+         */
         var sendNotification = function (message) {
             Debug.writeln(message);
         };
@@ -19,31 +54,69 @@
         // The usage of a global variable for drawingAttributes is not completely necessary,
         // just a convenience.  One could always re-fetch the current drawingAttributes
         // from the inkManager.
+
+        /**
+         * Represents the ink interface.
+         *
+         * @property inkCanvas
+         * @private
+         * @type Windows.UI.Input.Inking.InkManager
+         */
         var inkManager = new Windows.UI.Input.Inking.InkManager();
+
+        /**
+         * Keeps track of the inkManager's ink drawing attributes.
+         *
+         * @property drawingAttributes
+         * @private
+         * @type Windows.UI.Input.Inking.InkDrawingAttributes
+         */
         var drawingAttributes = new Windows.UI.Input.Inking.InkDrawingAttributes();
         drawingAttributes.fitToCurve = true;
         inkManager.setDefaultDrawingAttributes(drawingAttributes);
 
-        // This is the canvas for drawing ink and its 2d context
+        /**
+         * A reference to the canvas element.
+         *
+         * @property inkCanvas
+         * @private
+         * @type HTMLElement
+         */
         var inkCanvas = null;
+
+        /**
+         * 2D ink context.
+         *
+         * @property inkContext
+         * @private
+         * @type CanvasRenderingContext2D
+         */
         var inkContext = null;
 
-        // Global memory of the current pointID (for pen, and, separately, for touch).
-        // We ignore handlePointerMove() and handlePointerUp() calls that don't use the same
-        // pointID as the most recent handlePointerDown() call.  This is because the user sometimes
-        // accidentally nudges the mouse while inking or touching.  This can cause move events
-        // for that mouse that have different x,y coordinates than the ink trace or touch path
-        // we are currently handling.
-
-        // pointer* events maintain this pointId so that one can track individual fingers,
-        // the pen, and the mouse.
-
-        // Note that when the pen fails to leave the area where it can be sensed, it does NOT
-        // get a new ID; so it is possible for 2 or more consecutive strokes to have the same ID.
+        /**
+         * Global memory of the current pointID (for pen, and, separately, for touch).
+         * We ignore handlePointerMove() and handlePointerUp() calls that don't use the same
+         * pointID as the most recent handlePointerDown() call.  This is because the user sometimes
+         * accidentally nudges the mouse while inking or touching.  This can cause move events
+         * for that mouse that have different x,y coordinates than the ink trace or touch path
+         * we are currently handling.
+         * pointer* events maintain this pointId so that one can track individual fingers,
+         * the pen, and the mouse.
+         *
+         * @property penID
+         * @private
+         * @type Number
+         */
         var penID = -1;
 
-        // The "mode" of whether we are inking or erasing is controlled by this global variable,
-        // which should be pointing to inkContext.
+        /**
+         * The "mode" of whether we are inking or erasing is controlled by this variable,
+         * which should be pointing to inkContext.
+         *
+         * @property context
+         * @private
+         * @type CanvasRenderingContext2D
+         */
         var context = null;
 
         // Note that we can get into erasing mode in one of two ways: there is a eraser button in the toolbar,
@@ -53,51 +126,121 @@
         // end of the stylus.  And we want to return to the mode we were in before this happened.  Thus we
         // maintain a shallow stack (depth 1) of "mode" info.
 
+        /**
+         * Saved 2D ink context.
+         *
+         * @property savedContext
+         * @private
+         * @type CanvasRenderingContext2D
+         */
         var savedContext = null;
+
+        /**
+         * Saved color or style to use for strokes.
+         *
+         * @property savedStyle
+         * @private
+         * @type nsIVariant
+         */
         var savedStyle = null;
+
+        /**
+         * Saved ink mode.
+         *
+         * @property savedMode
+         * @private
+         * @type Windows.UI.Input.Inking.InkManipulationMode
+         */
         var savedMode = null;
 
-        // Dictionary of chars to lists of chars
-        // If any of the letters in the list is detected by handwriting recognition
-        // it should accept the char key as input.
-        // Otherwise it will notify a list of conversions every time handwriting recognition occurs.
+        /**
+         * List of objects that determine the valid input for handwriting recognition.
+         * If any of the letters in the list is detected by handwriting recognition
+         * it should accept the char key as input.
+         * Otherwise it will notify a list of conversions every time handwriting recognition occurs via sendNotification().
+         *
+         * @property conversionDictionary
+         * @private
+         * @type Object
+         */
         var conversionDictionary = null;
 
-        // Keeps track of whether we have already called clear (clear is usually called on a timeout to give the user
-        // more time to finish inking)
-        // if so there is no need to schedule another clear
+        /**
+         * Numerical id of the clear timeout that is set on the window.
+         * Keeps track of whether we have already called clear (clear is usually called on a timeout to give the user
+         * more time to finish inking).
+         *
+         * @property queuedClear
+         * @private
+         * @type Number
+         */
         var queuedClear = null;
 
-        // The default value for clearTimeout is 1000 ms
-        // This can be overridden by the configuration in initializeInk()
-        // This is how long we should wait before clearing invalid input
-        // It will be reset as soon as the user touches, clicks, or draws on the canvas
+        /**
+         * This is how long in milliseconds we should wait before clearing invalid input.
+         * The default value for clearTimeout is 1000 ms.
+         * This can be overridden by the configuration in initializeInk().
+         *
+         * @property clearTimeoutDuration
+         * @private
+         * @type Number
+         */
         var clearTimeoutDuration = 1000;
 
         //handwritingRecognitionCallback depends upon conversionDictionary being set for it to work
 
-        // This is an optional callback the user can send in when initializing ink.
-        // It is called with the string that was recognized whenever valid handwriting is recognized
-        // If the callback is not null it will expect a true or false return value
-        // The return value decides whether the string should be accepted as input
-        // If false the handwriting will be cleared
+        /**
+         * This is an optional callback the user can send in when initializing ink.
+         * It is called with the string that was recognized whenever valid handwriting is recognized.
+         * If the callback is not null it will expect a true or false return value.
+         * The return value decides whether the string should be accepted as input.
+         * If false the handwriting will be cleared.
+         *
+         * @event handwritingRecognitionCallback
+         * @private
+         * @param {String} recognizedText The text that was recognized.
+         */
         var handwritingRecognitionCallback = null;
 
-        // Controls whether the canvas is currently accepting user input (pen, mouse, touch).
+        /**
+         * Controls whether the canvas is currently accepting user input (pen, mouse, touch).
+         *
+         * @property canvasEnabled
+         * @private
+         * @type Boolean
+         */
         var canvasEnabled = true;
 
-        // Controls whether handwriting should automatically be converted to text.
-        // When handwriting is recognized as valid input, the canvas will be cleared, disabled
-        // and covered by an overlay that contains the text that was recognized
+        /**
+         * Controls whether handwriting should automatically be converted to text.
+         * When handwriting is recognized as valid input, the canvas will be cleared, disabled
+         * and covered by an overlay that contains the text that was recognized.
+         *
+         * @property autoConvertHandwritingToText
+         * @private
+         * @type Boolean
+         */
         var autoConvertHandwritingToText = false;
 
-        // A reference to the element that contains the text to display if autoConvertHandwritingToText is enabled
+        /**
+         * A reference to the element that contains the text to display if autoConvertHandwritingToText is enabled.
+         *
+         * @property textOverlayElement
+         * @private
+         * @type HTMLElement
+         */
         var textOverlayElement;
 
         // Functions to convert from and to the 32-bit int used to represent color in Windows.UI.Input.Inking.InkManager.
 
-        // Convenience function used by color converters.
-        // Assumes arg num is a number (0..255); we convert it into a 2-digit hex string.
+        /**
+         * Converts an integer to its 2-digit string hexideciaml representation. Assumes arg num is a number (0..255).
+         *
+         * @method toColorString
+         * @private
+         * @param {Number} num Integer to convert.
+         * @return {String} Converted hex string.
+         */
         function byteHex(num)
         {
             var hex = num.toString(16);
@@ -108,15 +251,29 @@
             return hex;
         }
 
-        // Convert from Windows.UI.Input.Inking's color code to html's color hex string.
+        /**
+         * Convert from Windows.UI.Color to html's color hex string.
+         *
+         * @method toColorString
+         * @private
+         * @param {Windows.UI.Color} color Color object to convert.
+         * @return {String} Converted color hex string.
+         */
         function toColorString(color)
         {
             return "#" + byteHex(color.r) + byteHex(color.g) + byteHex(color.b);
         }
 
-        // Convert from the few color names used in this app to Windows.UI.Input.Inking's color code.
-        // If it isn't one of those, then decode the hex string.  Otherwise return gray.
-        // The alpha component is always set to full (255).
+        /**
+         * Convert from the few color names used in this library to Windows.UI.Input.Inking's color code.
+         * If it isn't one of those, then decode the hex string.  Otherwise return gray.
+         * The alpha component is always set to full (255).
+         *
+         * @method toColorStruct
+         * @private
+         * @param {String} color Name of the color. Ex: "Black", "Blue", "Red"
+         * @return {Windows.UI.Color} Converted color.
+         */
         function toColorStruct(color)
         {
             switch (color)
@@ -163,12 +320,24 @@
         // More modes could be added for more functionality
         // Look at the microsoft ink samples for highlight, select, and erase modes
 
+        /**
+         * Clear the current ink mode.
+         *
+         * @method clearMode
+         * @private
+         */
         function clearMode() {
             savedContext = null;
             savedStyle = null;
             savedMode = null;
         }
 
+        /**
+         * Save the current ink mode.
+         *
+         * @method saveMode
+         * @private
+         */
         function saveMode() {
             if (!savedContext) {
                 savedStyle = context.strokeStyle;
@@ -177,6 +346,12 @@
             }
         }
 
+        /**
+         * Restore the saved ink mode.
+         *
+         * @method restoreMode
+         * @private
+         */
         function restoreMode() {
             if (savedContext) {
                 context = savedContext;
@@ -186,11 +361,12 @@
             }
         }
 
-        // 2 functions to switch back and forth between ink mode and a temp erase mode, which uses the saveMode()/restoreMode() functions to
-        // return us to our previous mode when done erasing.  This is used for quick erasers using the back end
-        // of the pen (for those pens that have that).
-        // NOTE: The erase modes also attempt to set the mouse/pen cursor to the image of a chalkboard eraser
-        // (stored in images/erase.cur), but as of this writing cursor switching is not working (the cursor switching part may have been removed).
+        /**
+         * Sets the ink mode to inking (default).
+         *
+         * @method inkMode
+         * @private
+         */
         function inkMode()
         {
             clearMode();
@@ -199,6 +375,13 @@
             setDefaults();
         }
 
+        /**
+         * Change the ink mode to erase for erasers on the back of pens (like the Surface Pro 1 & 2).
+         * Uses the saveMode()/restoreMode() functions to return us to our previous mode when done erasing.
+         *
+         * @method tempEraseMode
+         * @private
+         */
         function tempEraseMode()
         {
             saveMode();
@@ -207,14 +390,17 @@
             inkManager.mode = Windows.UI.Input.Inking.InkManipulationMode.erasing;
         }
 
-        // Note that we cannot just set the width in stroke.drawingAttributes.size.width,
-        // or the color in stroke.drawingAttributes.color.
-        // The stroke API supports get and put operations for drawingAttributes,
-        // but we must execute those operations separately, and change any values
-        // inside drawingAttributes between those operations.
-
-        // Change the color and width in the default (used for new strokes) to the values
-        // currently set in the current context.
+        /**
+         * Change the color and width in the default (used for new strokes) to the values currently set in the current context.
+         * Note that we cannot just set the width in stroke.drawingAttributes.size.width,
+         * or the color in stroke.drawingAttributes.color.
+         * The stroke API supports get and put operations for drawingAttributes,
+         * but we must execute those operations separately, and change any values
+         * inside drawingAttributes between those operations.
+         *
+         * @method setDefaults
+         * @private
+         */
         function setDefaults()
         {
             var strokeSize = drawingAttributes.size;
@@ -228,7 +414,14 @@
 
         //Event handler region
         var EventHandler = {
-            // We will accept pen down, mouse left down, or touch down as the start of a stroke.
+            /**
+             * Fired on pen down, mouse left down, and touch down.
+             * Signals the start of a stroke.
+             *
+             * @event EventHandler.handlePointerDown
+             * @private
+             * @param {PointerEvent} evt The pointer down event.
+             */
             handlePointerDown : function(evt) {
                 try {
                     if (!canvasEnabled) {
@@ -263,6 +456,13 @@
                 }
             },
 
+            /**
+             * Fired when the pen, mouse, or finger moves.
+             *
+             * @event EventHandler.handlePointerMove
+             * @private
+             * @param {PointerEvent} evt The pointer move event.
+             */
             handlePointerMove : function(evt) {
                 try {
                     if (!canvasEnabled) {
@@ -286,6 +486,13 @@
                 }
             },
 
+            /**
+             * Fired when the pen, mouse, or finger lifts off the canvas.
+             *
+             * @event EventHandler.handlePointerUp
+             * @private
+             * @param {PointerEvent} evt The pointer up event.
+             */
             handlePointerUp : function(evt) {
                 try {
                     if (!canvasEnabled) {
@@ -308,8 +515,15 @@
                 }
             },
 
-            // We treat the event of the pen leaving the canvas as the same as the pen lifting;
-            // it completes the stroke.
+            /**
+             * Fired when the pen or mouse goes outside the canvas.
+             * We treat the event of the pen leaving the canvas as the same as the pen lifting;
+             * it completes the stroke.
+             *
+             * @event EventHandler.handlePointerOut
+             * @private
+             * @param {PointerEvent} evt The pointer out event.
+             */
             handlePointerOut : function(evt) {
                 try {
                     if (!canvasEnabled) {
@@ -331,9 +545,14 @@
             }
         };
 
-        // Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,
-        // then the paper is drawn, then all the strokes are drawn.
-        // dontFind determines whether we should perform handwriting recognition
+        /**
+         * Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,
+         * then the paper is drawn, then all the strokes are drawn.
+         *
+         * @method renderAllStrokes
+         * @param {Boolean} [dontFind] Whether to not perform handwriting recognition after rendering the strokes.
+         * @private
+         */
         function renderAllStrokes(dontFind)
         {
             inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
@@ -352,7 +571,16 @@
             }
         }
 
-        // Draws a single stroke into a specified canvas 2D context, with a specified color and width.
+        /**
+         * Draws a single stroke into a specified canvas 2D context, with a specified color and width.
+         *
+         * @method renderStroke
+         * @param {InkStroke} stroke The stroke to draw.
+         * @param {nsIVariant} color Color or style to use for stroke lines. Default #000 (black).
+         * @param {float} width The width of the stroke.
+         * @param {CanvasRenderingContext2D} ctx The 2D context to draw the stroke on.
+         * @private
+         */
         function renderStroke(stroke, color, width, ctx) {
             ctx.save();
 
@@ -385,7 +613,12 @@
             }
         }
 
-        // Makes all strokes a part of the selection.
+        /**
+         * Makes all strokes a part of the selection.
+         *
+         * @method selectAllStrokes
+         * @private
+         */
         function selectAllStrokes()
         {
             inkManager.getStrokes().forEach(function (stroke) {
@@ -393,25 +626,12 @@
             });
         }
 
-        // Clears the canvas of all strokes
-        self.clear = function()
-        {
-            try
-            {
-                selectAllStrokes();
-                inkManager.deleteSelected();
-                inkMode();
-
-                renderAllStrokes(true);
-            }
-            catch (e)
-            {
-                onError(e);
-            }
-        };
-
-        // Prevents any queued calls to clear from happening
-        // then empties the queue
+        /**
+         * Prevents any queued calls to clear from happening then empties the queue.
+         *
+         * @method resetClearQueue
+         * @private
+         */
         function resetClearQueue() {
             if (queuedClear) {
                 window.clearTimeout(queuedClear);
@@ -419,27 +639,30 @@
             }
         }
 
-        // Calls asynchronous handwriting recognition, which returns a list of results.
-        // Each result has a list of potential text candidates.
-        // We use the conversion dictionary to check against all potential text candidates
-        // to see if we have valid input.
-
-        // If the handwriting is recognized as valid input we call handwritingRecognitionCallback
+        /**
+         * Calls asynchronous handwriting recognition, which returns a list of results.
+         * Each result has a list of potential text candidates.
+         * We use the conversion dictionary to check against all potential text candidates to see if we have valid input.
+         * If the handwriting is recognized as valid input we call handwritingRecognitionCallback.
+         *
+         * @method find
+         * @private
+         */
         function find() {
             try {
                 resetClearQueue();
                 inkManager.recognizeAsync(Windows.UI.Input.Inking.InkRecognitionTarget.all).done
                 (
                     function (results) {
-                        var i, valid;
+                        var i, recognizedText;
                         inkManager.updateRecognitionResults(results);
 
 
                         if (conversionDictionary) {
-                            valid = checkForValidRecognitionResults(results);
-                            if (valid) {
+                            recognizedText = checkForValidRecognitionResults(results);
+                            if (recognizedText) {
                                 // Call the handwriting recognition callback
-                                if (handwritingRecognitionCallback && !handwritingRecognitionCallback(valid)) {
+                                if (handwritingRecognitionCallback && !handwritingRecognitionCallback(recognizedText)) {
                                     // Means there is a callback and the callback rejected the input
                                     // so we should clear the canvas immediately
                                     self.clear();
@@ -448,12 +671,12 @@
                                 }
                                 // Check to see if we should automatically convert the handwriting to text
                                 if (autoConvertHandwritingToText) {
-                                    displayTextOverlay(valid);
+                                    displayTextOverlay(recognizedText);
                                     canvasEnabled = false;
                                     self.clear();
                                 }
 
-                                sendNotification("Found valid conversion: " + valid);
+                                sendNotification("Found valid conversion: " + recognizedText);
                             } else {
                                 // Give the user some time to make their input valid.
                                 // Clear the canvas if they do not respond in time
@@ -479,8 +702,15 @@
             return false;
         }
 
-        // Checks the handwriting recognition results for valid input according to the conversion dictionary.
-        // If any valid input is found, the appropriate key from the conversion dictionary is returned.
+        /**
+         * Checks the handwriting recognition results for valid input according to the conversion dictionary.
+         * If any valid input is found, the appropriate key from the conversion dictionary is returned.
+         *
+         * @method checkForValidRecognitionResults
+         * @private
+         * @param {IVectorView<InkRecognitionResult>} recognitionResults The text candidates returned by handwriting recognition.
+         * @return {String} The text that was recognized.
+         */
         function checkForValidRecognitionResults(recognitionResults) {
             var i, j, key, m, textCandidates;
             for (i = 0; i < recognitionResults.length; i++) {
@@ -495,20 +725,39 @@
                     }
                 }
             }
-            return false;
+            return null;
         }
 
+        /**
+         * Displays text over the canvas. This also disables the canvas.
+         *
+         * @method displayTextOverlay
+         * @private
+         * @param {String} text The text to display.
+         */
         function displayTextOverlay(text) {
             textOverlayElement.innerText = text;
             textOverlayElement.style.zIndex = "6"; 
         }
 
+        /**
+         * Hides the text overlay that displays converted handwriting.
+         *
+         * @method hideTextOverlay
+         * @private
+         */
         function hideTextOverlay() {
             textOverlayElement.style.zIndex = "4";
         }
 
-        // Finds a specific recognizer, and sets the inkManager's default to that recognizer.
-        // Returns true if successful.
+        /**
+         * Finds a specific recognizer, and sets the inkManager's default to that recognizer.
+         *
+         * @method setRecognizerByName
+         * @private
+         * @param {String} recname The name of the InkManager recognizer.
+         * @return {Boolean} Whether it found the recognizer specified by recname.
+         */
         function setRecognizerByName (recname)
         {
             try
@@ -533,49 +782,92 @@
 
         // Publicly Accessible functions go down here
 
-        // Sets whether the canvas is enabled. By default the canvas is enabled.
+        /**
+         * Clears the canvas of all strokes.
+         *
+         * @method clear
+         */
+        self.clear = function()
+        {
+            try
+            {
+                selectAllStrokes();
+                inkManager.deleteSelected();
+                inkMode();
+
+                renderAllStrokes(true);
+            }
+            catch (e)
+            {
+                onError(e);
+            }
+        };
+
+        /**
+         * Sets whether the canvas is enabled.
+         *
+         * @method setCanvasEnabled
+         * @param {Boolean} value Whether the canvas should be enabled (allow pen, mouse, and touch inout from the user).
+         */
         self.setCanvasEnabled = function(value) {
             canvasEnabled = value;
         };
 
-        // Returns whether the canvas is enabled.
+        /**
+         * Returns whether the canvas is enabled.
+         *
+         * @method getCanvasEnabled
+         * @return {Boolean} Whether the canvas is enabled.
+         */
         self.getCanvasEnabled = function() {
             return canvasEnabled;
         };
 
-        // Resets the canvas back to default inkable mode.
+        /**
+         * Resets the canvas back to default inkable mode.
+         *
+         * @method resetCanvas
+         */
         self.resetCanvas = function() {
             self.clear();
             self.setCanvasEnabled(true);
             hideTextOverlay();
         };
 
-        // elementId is the ID of the element that the canvas should be initialized in
-        // (optional) configuration is an object with the following properties:
-        //  errorHandler is a function that accepts an exception as the only argument
-        //  messageHandler is a function that accepts a string as the only argument
-        //  alphabetDictionary defines the language that should be accepted as input by handwriting recognition
-        //      the dictionary should have chars for keys and lists of chars as values.
-        //      if any char in the value list is detected by handwriting recognition InkCanvas will accept the key char as input
-        //  recognitionCallback is a function that accepts a string for when handwriting has been recognized as valid input
-        //  clearTimeoutDuration is the amount of time in milliseconds to wait before clearing the canvas if the input is invalid
-        //  autoConvertHandwritingToText determines whether the canvas should automatically change to text upon handwriting recognition
-        //      accepting a character
-        //  fontSize is the css font size for text
-
-        // Sample configuration:
-        // {
-        //  errorHandler : function(ex) { throw ex; },
-        //  messageHandler: function(message) { Debug.writeLn(message); },
-        //  alphabetDictionary : [
-        //      "X": ["x","X","%","T","t"],
-        //      "O": ["o","O","0","Q"]
-        //  ],
-        //  recognitionCallback: function(value) { Debug.writeLn("Input recognized: " + value); },
-        //  clearTimeoutDuration: 2000,
-        //  autoConvertHandwritingToText: true,
-        //  fontSize: "10rem"
-        // }
+        /**
+         * Creates a canvas DOM Element inside the Element with the specified elementId. The canvas begins responding
+         * to pen, mouse, and touch input upon creation. Accepts a configuration Object containing various configuration properties.
+         * Sample configuration:
+         * <pre>
+         * {
+         *  errorHandler : function(ex) { throw ex; },
+         *  messageHandler: function(message) { Debug.writeLn(message); },
+         *  alphabetDictionary : [
+         *      "X": ["x","X","%","T","t"],
+         *      "O": ["o","O","0","Q"]
+         *  ],
+         *  recognitionCallback: function(value) { Debug.writeLn("Input recognized: " + value); },
+         *  clearTimeoutDuration: 2000,
+         *  autoConvertHandwritingToText: true,
+         *  fontSize: "10rem"
+         * }
+         * </pre>
+         *
+         * @method initializeInk
+         * @param {String} elementId A case-sensitive string representing the unique ID of the element to create a canvas inside of.
+         * @param {Object} [configuration] An optional object containing several configuration parameters which affect the behaviour
+         * of the canvas.
+         * @param {Function} [configuration.errorHandler] A callback function to handle errors.
+         * @param {Error} configuration.errorHandler.ex The Error object that will be passed into the errorHandler if an error occurs.
+         * @param {Function} [configuration.messageHandler] A callback function for debugging messages.
+         * @param {String} configuration.messageHandler.message The debug message that will be passed into messageHandler.
+         * @param {Object} [configuration.alphabetDictionary] An object that defines the input that should be recognized by handwriting recognition.
+         * @param {Function} [configuration.recognitionCallback] A callback function for when handwriting is recognized.
+         * @param {String} configuration.recognitionCallback The text that was recognized to be passed into recognitionCallback.
+         * @param {Number} [configuration.clearTimeoutDuration=1000] The length of time in milliseconds to wait for additional user input before clearing unrecognized handwriting from the canvas.
+         * @param {Boolean} [configuration.autoConvertHandwritingToText=false] Determines if handwriting should automatically be converted to text as soon as it is recongized.
+         * @param {String} [configuration.fontSize="4rem"] The CSS value for the font size of text in the canvas. 
+         */
         self.initializeInk = function (elementId, configuration) {
             var fontSize = "4rem";
 

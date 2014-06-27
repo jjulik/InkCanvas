@@ -1,0 +1,791 @@
+{
+    "project": {
+        "name": "Inky",
+        "description": "A JavaScript library for creating canvases that recognize text automatically and convert the canvas to text.",
+        "version": "1.0.0"
+    },
+    "files": {
+        "inky.js": {
+            "name": "inky.js",
+            "modules": {
+                "Inky": 1
+            },
+            "classes": {
+                "AutoCanvas": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        }
+    },
+    "modules": {
+        "Inky": {
+            "name": "Inky",
+            "submodules": {},
+            "classes": {
+                "AutoCanvas": 1
+            },
+            "fors": {},
+            "namespaces": {},
+            "tag": "module",
+            "file": "inky.js",
+            "line": 22,
+            "description": "A library for creating canvases that can recognize handwriting and automatically convert to text.",
+            "requires": [
+                "Windows",
+                "WinJS",
+                "Debug"
+            ]
+        }
+    },
+    "classes": {
+        "AutoCanvas": {
+            "name": "AutoCanvas",
+            "shortname": "AutoCanvas",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Inky",
+            "namespace": "",
+            "file": "inky.js",
+            "line": 22,
+            "description": "A canvas that supports handwriting recognition.",
+            "is_constructor": 1
+        }
+    },
+    "classitems": [
+        {
+            "file": "inky.js",
+            "line": 31,
+            "description": "Error handler. Can be overriden when the ink is initialized.",
+            "itemtype": "event",
+            "name": "onError",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "ex",
+                    "description": "The error that was thrown.",
+                    "type": "Error"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 42,
+            "description": "Message handler for debugging info. Can be overriden when the ink is initialized.",
+            "itemtype": "event",
+            "name": "sendNotification",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "message",
+                    "description": "The message being sent.",
+                    "type": "String"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 58,
+            "description": "Represents the ink interface.",
+            "itemtype": "property",
+            "name": "inkCanvas",
+            "access": "private",
+            "tagname": "",
+            "type": "Windows.UI.Input.Inking.InkManager",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 67,
+            "description": "Keeps track of the inkManager's ink drawing attributes.",
+            "itemtype": "property",
+            "name": "drawingAttributes",
+            "access": "private",
+            "tagname": "",
+            "type": "Windows.UI.Input.Inking.InkDrawingAttributes",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 78,
+            "description": "A reference to the canvas element.",
+            "itemtype": "property",
+            "name": "inkCanvas",
+            "access": "private",
+            "tagname": "",
+            "type": "HTMLElement",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 87,
+            "description": "2D ink context.",
+            "itemtype": "property",
+            "name": "inkContext",
+            "access": "private",
+            "tagname": "",
+            "type": "CanvasRenderingContext2D",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 96,
+            "description": "Global memory of the current pointID (for pen, and, separately, for touch).\nWe ignore handlePointerMove() and handlePointerUp() calls that don't use the same\npointID as the most recent handlePointerDown() call.  This is because the user sometimes\naccidentally nudges the mouse while inking or touching.  This can cause move events\nfor that mouse that have different x,y coordinates than the ink trace or touch path\nwe are currently handling.\npointer* events maintain this pointId so that one can track individual fingers,\nthe pen, and the mouse.",
+            "itemtype": "property",
+            "name": "penID",
+            "access": "private",
+            "tagname": "",
+            "type": "Number",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 112,
+            "description": "The \"mode\" of whether we are inking or erasing is controlled by this variable,\nwhich should be pointing to inkContext.",
+            "itemtype": "property",
+            "name": "context",
+            "access": "private",
+            "tagname": "",
+            "type": "CanvasRenderingContext2D",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 129,
+            "description": "Saved 2D ink context.",
+            "itemtype": "property",
+            "name": "savedContext",
+            "access": "private",
+            "tagname": "",
+            "type": "CanvasRenderingContext2D",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 138,
+            "description": "Saved color or style to use for strokes.",
+            "itemtype": "property",
+            "name": "savedStyle",
+            "access": "private",
+            "tagname": "",
+            "type": "nsIVariant",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 147,
+            "description": "Saved ink mode.",
+            "itemtype": "property",
+            "name": "savedMode",
+            "access": "private",
+            "tagname": "",
+            "type": "Windows.UI.Input.Inking.InkManipulationMode",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 156,
+            "description": "List of objects that determine the valid input for handwriting recognition.\nIf any of the letters in the list is detected by handwriting recognition\nit should accept the char key as input.\nOtherwise it will notify a list of conversions every time handwriting recognition occurs via sendNotification().",
+            "itemtype": "property",
+            "name": "conversionDictionary",
+            "access": "private",
+            "tagname": "",
+            "type": "Object",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 168,
+            "description": "Numerical id of the clear timeout that is set on the window.\nKeeps track of whether we have already called clear (clear is usually called on a timeout to give the user\nmore time to finish inking).",
+            "itemtype": "property",
+            "name": "queuedClear",
+            "access": "private",
+            "tagname": "",
+            "type": "Number",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 179,
+            "description": "This is how long in milliseconds we should wait before clearing invalid input.\nThe default value for clearTimeout is 1000 ms.\nThis can be overridden by the configuration in initializeInk().",
+            "itemtype": "property",
+            "name": "clearTimeoutDuration",
+            "access": "private",
+            "tagname": "",
+            "type": "Number",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 192,
+            "description": "This is an optional callback the user can send in when initializing ink.\nIt is called with the string that was recognized whenever valid handwriting is recognized.\nIf the callback is not null it will expect a true or false return value.\nThe return value decides whether the string should be accepted as input.\nIf false the handwriting will be cleared.",
+            "itemtype": "event",
+            "name": "handwritingRecognitionCallback",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "recognizedText",
+                    "description": "The text that was recognized.",
+                    "type": "String"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 205,
+            "description": "Controls whether the canvas is currently accepting user input (pen, mouse, touch).",
+            "itemtype": "property",
+            "name": "canvasEnabled",
+            "access": "private",
+            "tagname": "",
+            "type": "Boolean",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 214,
+            "description": "Controls whether handwriting should automatically be converted to text.\nWhen handwriting is recognized as valid input, the canvas will be cleared, disabled\nand covered by an overlay that contains the text that was recognized.",
+            "itemtype": "property",
+            "name": "autoConvertHandwritingToText",
+            "access": "private",
+            "tagname": "",
+            "type": "Boolean",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 225,
+            "description": "A reference to the element that contains the text to display if autoConvertHandwritingToText is enabled.",
+            "itemtype": "property",
+            "name": "textOverlayElement",
+            "access": "private",
+            "tagname": "",
+            "type": "HTMLElement",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 236,
+            "description": "Converts an integer to its 2-digit string hexideciaml representation. Assumes arg num is a number (0..255).",
+            "itemtype": "method",
+            "name": "toColorString",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "num",
+                    "description": "Integer to convert.",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "Converted hex string.",
+                "type": "String"
+            },
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 254,
+            "description": "Convert from Windows.UI.Color to html's color hex string.",
+            "itemtype": "method",
+            "name": "toColorString",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "color",
+                    "description": "Color object to convert.",
+                    "type": "Windows.UI.Color"
+                }
+            ],
+            "return": {
+                "description": "Converted color hex string.",
+                "type": "String"
+            },
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 267,
+            "description": "Convert from the few color names used in this library to Windows.UI.Input.Inking's color code.\nIf it isn't one of those, then decode the hex string.  Otherwise return gray.\nThe alpha component is always set to full (255).",
+            "itemtype": "method",
+            "name": "toColorStruct",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "color",
+                    "description": "Name of the color. Ex: \"Black\", \"Blue\", \"Red\"",
+                    "type": "String"
+                }
+            ],
+            "return": {
+                "description": "Converted color.",
+                "type": "Windows.UI.Color"
+            },
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 323,
+            "description": "Clear the current ink mode.",
+            "itemtype": "method",
+            "name": "clearMode",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 335,
+            "description": "Save the current ink mode.",
+            "itemtype": "method",
+            "name": "saveMode",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 349,
+            "description": "Restore the saved ink mode.",
+            "itemtype": "method",
+            "name": "restoreMode",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 364,
+            "description": "Sets the ink mode to inking (default).",
+            "itemtype": "method",
+            "name": "inkMode",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 378,
+            "description": "Change the ink mode to erase for erasers on the back of pens (like the Surface Pro 1 & 2).\nUses the saveMode()/restoreMode() functions to return us to our previous mode when done erasing.",
+            "itemtype": "method",
+            "name": "tempEraseMode",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 393,
+            "description": "Change the color and width in the default (used for new strokes) to the values currently set in the current context.\nNote that we cannot just set the width in stroke.drawingAttributes.size.width,\nor the color in stroke.drawingAttributes.color.\nThe stroke API supports get and put operations for drawingAttributes,\nbut we must execute those operations separately, and change any values\ninside drawingAttributes between those operations.",
+            "itemtype": "method",
+            "name": "setDefaults",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 417,
+            "description": "Fired on pen down, mouse left down, and touch down.\nSignals the start of a stroke.",
+            "itemtype": "event",
+            "name": "EventHandler.handlePointerDown",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "evt",
+                    "description": "The pointer down event.",
+                    "type": "PointerEvent"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 459,
+            "description": "Fired when the pen, mouse, or finger moves.",
+            "itemtype": "event",
+            "name": "EventHandler.handlePointerMove",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "evt",
+                    "description": "The pointer move event.",
+                    "type": "PointerEvent"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 489,
+            "description": "Fired when the pen, mouse, or finger lifts off the canvas.",
+            "itemtype": "event",
+            "name": "EventHandler.handlePointerUp",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "evt",
+                    "description": "The pointer up event.",
+                    "type": "PointerEvent"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 518,
+            "description": "Fired when the pen or mouse goes outside the canvas.\nWe treat the event of the pen leaving the canvas as the same as the pen lifting;\nit completes the stroke.",
+            "itemtype": "event",
+            "name": "EventHandler.handlePointerOut",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "evt",
+                    "description": "The pointer out event.",
+                    "type": "PointerEvent"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 548,
+            "description": "Redraws (from the beginning) all strokes in the canvases.  All canvases are erased,\nthen the paper is drawn, then all the strokes are drawn.",
+            "itemtype": "method",
+            "name": "renderAllStrokes",
+            "params": [
+                {
+                    "name": "dontFind",
+                    "description": "Whether to not perform handwriting recognition after rendering the strokes.",
+                    "type": "Boolean",
+                    "optional": true
+                }
+            ],
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 574,
+            "description": "Draws a single stroke into a specified canvas 2D context, with a specified color and width.",
+            "itemtype": "method",
+            "name": "renderStroke",
+            "params": [
+                {
+                    "name": "stroke",
+                    "description": "The stroke to draw.",
+                    "type": "InkStroke"
+                },
+                {
+                    "name": "color",
+                    "description": "Color or style to use for stroke lines. Default #000 (black).",
+                    "type": "NsIVariant"
+                },
+                {
+                    "name": "width",
+                    "description": "The width of the stroke.",
+                    "type": "Float"
+                },
+                {
+                    "name": "ctx",
+                    "description": "The 2D context to draw the stroke on.",
+                    "type": "CanvasRenderingContext2D"
+                }
+            ],
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 616,
+            "description": "Makes all strokes a part of the selection.",
+            "itemtype": "method",
+            "name": "selectAllStrokes",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 629,
+            "description": "Prevents any queued calls to clear from happening then empties the queue.",
+            "itemtype": "method",
+            "name": "resetClearQueue",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 642,
+            "description": "Calls asynchronous handwriting recognition, which returns a list of results.\nEach result has a list of potential text candidates.\nWe use the conversion dictionary to check against all potential text candidates to see if we have valid input.\nIf the handwriting is recognized as valid input we call handwritingRecognitionCallback.",
+            "itemtype": "method",
+            "name": "find",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 705,
+            "description": "Checks the handwriting recognition results for valid input according to the conversion dictionary.\nIf any valid input is found, the appropriate key from the conversion dictionary is returned.",
+            "itemtype": "method",
+            "name": "checkForValidRecognitionResults",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "recognitionResults",
+                    "description": "The text candidates returned by handwriting recognition.",
+                    "type": "IVectorView<InkRecognitionResult>"
+                }
+            ],
+            "return": {
+                "description": "The text that was recognized.",
+                "type": "String"
+            },
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 731,
+            "description": "Displays text over the canvas. This also disables the canvas.",
+            "itemtype": "method",
+            "name": "displayTextOverlay",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "text",
+                    "description": "The text to display.",
+                    "type": "String"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 743,
+            "description": "Hides the text overlay that displays converted handwriting.",
+            "itemtype": "method",
+            "name": "hideTextOverlay",
+            "access": "private",
+            "tagname": "",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 753,
+            "description": "Finds a specific recognizer, and sets the inkManager's default to that recognizer.",
+            "itemtype": "method",
+            "name": "setRecognizerByName",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "recname",
+                    "description": "The name of the InkManager recognizer.",
+                    "type": "String"
+                }
+            ],
+            "return": {
+                "description": "Whether it found the recognizer specified by recname.",
+                "type": "Boolean"
+            },
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 785,
+            "description": "Clears the canvas of all strokes.",
+            "itemtype": "method",
+            "name": "clear",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 806,
+            "description": "Sets whether the canvas is enabled.",
+            "itemtype": "method",
+            "name": "setCanvasEnabled",
+            "params": [
+                {
+                    "name": "value",
+                    "description": "Whether the canvas should be enabled (allow pen, mouse, and touch inout from the user).",
+                    "type": "Boolean"
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 816,
+            "description": "Returns whether the canvas is enabled.",
+            "itemtype": "method",
+            "name": "getCanvasEnabled",
+            "return": {
+                "description": "Whether the canvas is enabled.",
+                "type": "Boolean"
+            },
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 826,
+            "description": "Resets the canvas back to default inkable mode.",
+            "itemtype": "method",
+            "name": "resetCanvas",
+            "class": "AutoCanvas",
+            "module": "Inky"
+        },
+        {
+            "file": "inky.js",
+            "line": 837,
+            "description": "Creates a canvas DOM Element inside the Element with the specified elementId. The canvas begins responding\nto pen, mouse, and touch input upon creation. Accepts a configuration Object containing various configuration properties.\nSample configuration:\n<pre>\n{\n errorHandler : function(ex) { throw ex; },\n messageHandler: function(message) { Debug.writeLn(message); },\n alphabetDictionary : [\n     \"X\": [\"x\",\"X\",\"%\",\"T\",\"t\"],\n     \"O\": [\"o\",\"O\",\"0\",\"Q\"]\n ],\n recognitionCallback: function(value) { Debug.writeLn(\"Input recognized: \" + value); },\n clearTimeoutDuration: 2000,\n autoConvertHandwritingToText: true,\n fontSize: \"10rem\"\n}\n</pre>",
+            "itemtype": "method",
+            "name": "initializeInk",
+            "params": [
+                {
+                    "name": "elementId",
+                    "description": "A case-sensitive string representing the unique ID of the element to create a canvas inside of.",
+                    "type": "String"
+                },
+                {
+                    "name": "configuration",
+                    "description": "An optional object containing several configuration parameters which affect the behaviour\nof the canvas.",
+                    "type": "Object",
+                    "optional": true,
+                    "props": [
+                        {
+                            "name": "errorHandler",
+                            "description": "A callback function to handle errors.",
+                            "type": "Function",
+                            "optional": true,
+                            "props": [
+                                {
+                                    "name": "ex",
+                                    "description": "The Error object that will be passed into the errorHandler if an error occurs.",
+                                    "type": "Error"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "messageHandler",
+                            "description": "A callback function for debugging messages.",
+                            "type": "Function",
+                            "optional": true,
+                            "props": [
+                                {
+                                    "name": "message",
+                                    "description": "The debug message that will be passed into messageHandler.",
+                                    "type": "String"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "alphabetDictionary",
+                            "description": "An object that defines the input that should be recognized by handwriting recognition.",
+                            "type": "Object",
+                            "optional": true
+                        },
+                        {
+                            "name": "recognitionCallback",
+                            "description": "A callback function for when handwriting is recognized.",
+                            "type": "Function",
+                            "optional": true
+                        },
+                        {
+                            "name": "recognitionCallback",
+                            "description": "The text that was recognized to be passed into recognitionCallback.",
+                            "type": "String"
+                        },
+                        {
+                            "name": "clearTimeoutDuration",
+                            "description": "The length of time in milliseconds to wait for additional user input before clearing unrecognized handwriting from the canvas.",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "1000"
+                        },
+                        {
+                            "name": "autoConvertHandwritingToText",
+                            "description": "Determines if handwriting should automatically be converted to text as soon as it is recongized.",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "false"
+                        },
+                        {
+                            "name": "fontSize",
+                            "description": "The CSS value for the font size of text in the canvas.",
+                            "type": "String",
+                            "optional": true,
+                            "optdefault": "\"4rem\""
+                        }
+                    ]
+                }
+            ],
+            "class": "AutoCanvas",
+            "module": "Inky"
+        }
+    ],
+    "warnings": []
+}
