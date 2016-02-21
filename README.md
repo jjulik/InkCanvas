@@ -9,7 +9,9 @@ Add inky.js to your project. Include this file on any pages you want to use it. 
 ```javascript
 var autoCanvas = new Inky.AutoCanvas();
 var configuration = {
-  errorHandler: function (ex) { console.log(ex.toString()); },
+  errorHandler: function (ex) { Debug.writeLn(ex.toString()); },
+  // Callback for debugging purposes
+  messageHandler: function(message) { Debug.writeLn(message); },
   // alphabetDictionary allows you to choose which characters should be recognized.
   // It also makes it possible to correct for recognition errors.
   alphabetDictionary: {
@@ -17,8 +19,10 @@ var configuration = {
     "O": ["o", "O", "0", "Q"]
   },
   recognitionCallback: function (value) { 
-    console.log("autoCanvas recognized the following character: " + value); 
+    Debug.writeLn("autoCanvas recognized the following character: " + value); 
   },
+  // Amount of time after last input before recognition is attempted
+  clearTimeoutDuration: 2000,
   autoConvertHandwritingToText: true,
   fontSize: "8rem"
 };
